@@ -36,11 +36,11 @@ SOSTOOLS is freely available under the GNU public license v3.0.
 
 Archived releases of SOSTOOLS prior to v3.03 can be bounds at the following sites:
 
-* CDS at Caltech: http://www.cds.caltech.edu/sostools or
+* CDS at Caltech: http://www.cds.caltech.edu/sostools 
 
-* LIDS at MIT: http://www.mit.edu/~parrilo/sostools.
+* LIDS at MIT: http://www.mit.edu/~parrilo/sostools
 
-* Control Group at Oxford: http://www.eng.ox.ac.uk/control/sostools. 
+* Control Group at Oxford: http://www.eng.ox.ac.uk/control/sostools
 
 ## System requirements
 
@@ -68,13 +68,13 @@ The software has been written and is maintained by:
 For a detailed explanation of the theory and applications of sums of squares programming, as well as references to related work, please see:
 
 * *Structured Semidefinite Programs and Semialgebraic Geometry Methods in Robustness and Optimization*.
-California Institute of Technology, Pasadena, CA, May 2000. [Abstract](http://www.mit.edu/~parrilo/pubs/files/Thesis_abstract.html) [Pdf](http://www.mit.edu/~parrilo/pubs/files/thesis.pdf). 
+California Institute of Technology, Pasadena, CA, May 2000. [Abstract](http://www.mit.edu/~parrilo/pubs/files/Thesis_abstract.html), [Pdf](http://www.mit.edu/~parrilo/pubs/files/thesis.pdf). 
 
 * *Semidefinite programming relaxations for semialgebraic problems*.
-P. A. Parrilo.  [Abstract](http://www.mit.edu/~parrilo/pubs/files/SDPrelax_abstract.html) [ps](http://www.mit.edu/~parrilo/pubs/files/SDPrelaxations.ps) [gz](http://www.mit.edu/~parrilo/pubs/files/SDPrelaxations.ps.gz).
+P. A. Parrilo.  [Abstract](http://www.mit.edu/~parrilo/pubs/files/SDPrelax_abstract.html) [ps](http://www.mit.edu/~parrilo/pubs/files/SDPrelaxations.ps), [gz](http://www.mit.edu/~parrilo/pubs/files/SDPrelaxations.ps.gz).
 
 * *Minimizing polynomial functions*
-P. A. Parrilo, B. Sturmfels. [ArXiV.](http://www.arxiv.org/abs/math.OC/0103170)
+P. A. Parrilo, B. Sturmfels. [ArXiV](http://www.arxiv.org/abs/math.OC/0103170).
 
 
 For more references please see http://hot.caltech.edu/math.html but also the authors' websites.
