@@ -93,7 +93,9 @@ Please use the following when citing SOSTOOLS:
 @manual{sostools,
 author = {A. Papachristodoulou, J. Anderson, G. Valmorbida, S. Prajna, P. Seiler and P. A. Parrilo},
 title = {{SOSTOOLS}: Sum of squares optimization toolbox for {MATLAB}},
-note = {Available from \texttt{http://www.eng.ox.ac.uk/control/sostools}, \texttt{http://www.cds.caltech.edu/sostools} and \texttt{http://www.mit.edu/\~{}parrilo/sostools}},
+note = {Available from \texttt{http://www.eng.ox.ac.uk/control/sostools}, 
+        \texttt{http://www.cds.caltech.edu/sostools} and 
+        \texttt{http://www.mit.edu/\~{}parrilo/sostools}},
 year = {2013},
 address = {\texttt{http://arxiv.org/abs/1310.4716}},
 }
