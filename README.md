@@ -91,7 +91,7 @@ Please use the following when citing SOSTOOLS:
 
 ```
 @manual{sostools,
-author = {A. Papachristodoulou, J. Anderson, G. Valmorbida, S. Prajna, P. Seiler and P. A. Parrilo},
+author = {A. Papachristodoulou and J. Anderson and G. Valmorbida and S. Prajna and P. Seiler and P. A. Parrilo},
 title = {{SOSTOOLS}: Sum of squares optimization toolbox for {MATLAB}},
 note = {Available from \texttt{http://www.eng.ox.ac.uk/control/sostools}, 
         \texttt{http://www.cds.caltech.edu/sostools} and 
