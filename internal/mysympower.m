@@ -55,4 +55,4 @@ for j = 1:size(Z,1)
     ZTemp = [ZTemp,charexpr];
 end;    
 ZTemp = [ZTemp(1:end-1),']'];
-ZTemp = sym(ZTemp);
+ZTemp = str2sym(ZTemp);
