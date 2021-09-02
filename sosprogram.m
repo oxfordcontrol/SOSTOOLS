@@ -88,10 +88,18 @@ if isa(vartable,'sym')
 	sos.solinfo.RRy = [];
 	sos.solinfo.info = [];
 	
-	sos.vartable = sym2chartable(vartable);    % 02/21/02
-	if size(vartable,2) > 1
+    if ~isrow(vartable) %AP 30092020
         vartable = vartable.';
-	end;
+    end
+	sos.vartable = converttochar(vartable);    % 30/09/2020 AP
+	%if size(vartable,2) > 1
+    %    vartable = vartable.';
+	%end;
+    
+	%sos.vartable = sym2chartable(vartable);    % 02/21/02
+	%if size(vartable,2) > 1
+    %    vartable = vartable.';
+	%end;
 	sos.symvartable = vartable;
     
     sos.varmat.vartable = '[]';                 %JA&GV 06/06/13

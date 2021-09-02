@@ -55,7 +55,9 @@ if isfield(sos,'symvartable')
     end
 
 	objvartable = objvartable(find(objvartable~=' '));        % 03/25/02
-	decvartable = [',',sos.decvartable(2:end-1),','];
+	chardecvartable = sym2chartable(sos.decvartable); %AP 30092020
+	decvartable = [',',chardecvartable,','];
+    %decvartable = [',',sos.decvartable(2:end-1),','];
 	idxcomma1 = find(objvartable==',');
 	idxcomma2 = find(decvartable==',');
 	
