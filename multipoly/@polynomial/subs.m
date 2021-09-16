@@ -40,10 +40,18 @@ function b = subs(a,old,new)
 % 3/25/2003  PJS Initial Coding
 % 8/6/2009   PJS Bug for numeric subs where a is constant (a.nvar==0)
 % 12/10/2010 PJS Update syntax. Use collect/peval for partial numeric subs.
+% 8/16/2021 SS: fixed bug -- subs(0x0 polynomial,old, new) returns 0x1
+% polynomial, return a as it is if empty.
 
 %---------------------------------------------------------------------
 % Convert to basic syntax: B = subs(A,Old,New);
 %---------------------------------------------------------------------
+
+if isempty(a)
+    b=a;
+    return 
+end
+
 a = polynomial(a);
 if nargin == 1
     % Syntax: B = subs(A);

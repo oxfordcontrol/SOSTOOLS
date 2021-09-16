@@ -1,4 +1,4 @@
-function s=p2s(p)
+function varargout=p2s(varargin)
 % function s=p2s(p)
 %
 % DESCRIPTION 
@@ -8,7 +8,7 @@ function s=p2s(p)
 %   p: Polynomial created using the multipoly toolbox
 %
 % OUTPUTS  
-%   s: Polynomial created using the symbolic toolbox  
+%   s: Polynomial created using the symbolic math toolbox  
 %  
 % SYNTAX 
 %   s = p2s(p)
@@ -19,12 +19,14 @@ function s=p2s(p)
 % 11/23/2010 PJS  Updated for matrix polynomials
 
 
+for i=1:nargin
+
 % Get polynomial info
-[nr nc] = size(p);
-[nt,nv] = size(p.degmat);
-coef = p.coefficient;
-deg = p.degmat;
-var = p.varname;
+[nr nc] = size(varargin{i});
+[nt,nv] = size(varargin{i}.degmat);
+coef = varargin{i}.coefficient;
+deg = varargin{i}.degmat;
+var = varargin{i}.varname;
 
 % Create symbolic toolbox variables
 for i1 = 1:nv
@@ -32,7 +34,7 @@ for i1 = 1:nv
 end
 
 % Construct monomial by monomial
-s = zeros(nr,nc);
+varargout{i} = zeros(nr,nc);
 for i1 = 1:nt
     termexp = deg(i1,:);
     idx = find(termexp);
@@ -40,5 +42,6 @@ for i1 = 1:nt
     for i2 = 1:length(idx)
         eval(['term = term*(' var{idx(i2)} ')^termexp(idx(i2));']);
     end
-    s = s + reshape(coef(i1,:),[nr,nc])*term;
+    varargout{i} = varargout{i} + reshape(coef(i1,:),[nr,nc])*term;
 end  
+end

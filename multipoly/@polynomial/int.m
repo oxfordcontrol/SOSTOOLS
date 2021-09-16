@@ -35,6 +35,9 @@ function b = int(a,x,L,U)
 % See also: diff, jacobian
 
 % 12/6/2010 PJS  Initial Coding
+% 8/16/2021 SS added check convert to polynomial is integrand is not polynomial
+% call polynomial/combine at end only if b is polynomial, else matlab gets
+% confused between dpvar and pvar combine methods.
 
 % Process Inputs/ Error Checking
 if nargin==1
@@ -73,6 +76,9 @@ elseif ~ischar(x)
 end
 
 % Get polynomial info about A
+if ~isa(a,'polynomial')
+    a = polynomial(a);
+end
 acoef = a.coefficient;
 adeg = a.degmat;
 avar = a.varname;
@@ -111,5 +117,6 @@ if ~isempty(L)
     b = bU-bL;
 end
 
-% Combine any common terms
-b = combine(b);
+if isa(b,'polynomial')
+    b = combine(b);
+end

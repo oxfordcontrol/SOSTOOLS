@@ -3,7 +3,8 @@
 % 
 
 clear; echo on;
-pvar x1 x2 gam;
+pvar x1 x2 
+dpvar gam;
 vartable = [x1, x2];
 % =============================================
 % First, initialize the sum of squares program

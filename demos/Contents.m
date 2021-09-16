@@ -1,6 +1,6 @@
 % SOSTOOLS -- Sum of Squares Toolbox, demo files
-% Version 3.03
-% 1st April 2018.
+% Version 4.00
+% 9 September 2021.
 %    Standard SOSTOOLS demos using the symbolic math toolbox
 %
 %    SOSDEMO1    --- Sum of squares test.

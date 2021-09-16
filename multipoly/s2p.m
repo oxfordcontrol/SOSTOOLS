@@ -1,4 +1,4 @@
-function p=s2p(s)
+function varargout=s2p(varargin)
 % function p=s2p(s)
 %
 % DESCRIPTION
@@ -15,32 +15,33 @@ function p=s2p(s)
 %
 % See also p2s
 
-% 1/30/2003: PJS  Initial Coding
-% 11/23/2010 PJS  Updated for matrix polynomials and to use sym/eval
+% copied and modified from s2p() by PJS to work with newer matlab versions,
+% 9/2/2021 SS
 
-if ~isa(s,'sym')
+for i=1:nargin
+if ~isa(varargin{i},'sym')
     error('Input must be a symbolic toolbox object');
 end
 
 % Convert to variable precision arithmetic
-s = vpa(s);
+varargin{i} = vpa(varargin{i});
 
 % Create pvars for each variable in s
-vars = findsym(s);
+vars = symvar(varargin{i});
+
 if isempty(vars)
     nv = 0;
 else
-    vidx = [0 strfind(vars,',') length(vars)+1];
-    nv = length(vidx)-1;
+    nv = length(vars);
 end
 for i1 =1:nv
-    varname = vars(vidx(i1)+1 : vidx(i1+1)-1);
+    varname = char(vars(i1));
     pvar(varname);
 end
 
 % Expand the polynomial 
-se = expand(s);
+se = expand(varargin{i});
 
 % Evaluate in symbolic expression to convert to multipoly
-p = eval(se);
-
+varargout{i} = eval(se);
+end
