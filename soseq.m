@@ -1,4 +1,5 @@
 function sos = soseq(sos,symexpr)
+% sos = soseq(sos,symexpr)
 % SOSEQ --- Add a new equality constraint f(x) = 0
 %    to an SOS program 
 %

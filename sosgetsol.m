@@ -1,4 +1,5 @@
 function p = sosgetsol(sos,V,digit)
+% 
 % SOSGETSOL --- Get the solution from a solved SOS program 
 %
 % SOL = sosgetsol(SOSP,VAR,DIGIT) 

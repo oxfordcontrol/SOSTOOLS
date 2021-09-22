@@ -1,6 +1,6 @@
 function [sos,P] = sosposmatr(sos,n,sp_pat,wscoeff,PVoption)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% hotSOS v.01 - sosposmatr(sos,n,wscoeff)
+% [sos,P] = sosposmatr(sos,n,sp_pat,wscoeff,PVoption)
 % This program declares a positive scalar (no independent variables)
 % semidefinite matrix P of size nxn of the dpvar class format
 %

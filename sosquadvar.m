@@ -1,7 +1,7 @@
 function [sos,P] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% SOSQUADVAR(prog,n,d,vars)
+% [sos,P] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 %
 % This program declares a symbolic positive scalar semidefinite matrix P of
 % size nxn which is positive semidefinite for all values of the variables.
@@ -35,7 +35,7 @@ function [sos,P] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 % prog - updated program structure
 % P - dpvar polynomial structure. This structure is not cellular unless Z1c
 % or Z2c were cellular
-
+%
 % ALTERNATIVE CELLULAR INPUT FORMAT
 % For a multipartite structure, Z1c and Z2c may be cells of monomial column
 % vectors. The number of cells in Z1c and Z2c need not be the same unless
