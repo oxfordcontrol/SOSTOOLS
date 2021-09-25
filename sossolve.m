@@ -99,9 +99,7 @@ sos.extravar.idx{1} = sos.var.idx{sos.var.num+1};
 % SOS variables
 I = [find(strcmp(sos.expr.type,'ineq')), find(strcmp(sos.expr.type,'sparse')), find(strcmp(sos.expr.type,'sparsemultipartite'))];
 if ~isempty(I)
-    tic
     sos = addextrasosvar(sos,I);
-    toc
 end;
 % SOS variables type II (restricted on interval)
 I = find(strcmp(sos.expr.type,'posint'));
@@ -218,10 +216,8 @@ elseif strcmp(lower(options.solver),'mosek')
     size_At = size(At);
     disp(['Size: ' num2str(size_At)]);
     disp([' ']);
-    tic
     prob = Sedumi2Mosek(At',b,c,K);
-    toc
-    [~,res] = mosekopt('minimize info',prob);
+    [~,res] = mosekopt('minimize info',prob,pars);
     [x,Y] = MosekSol2SedumiSol(K,res);
     y=Y(1:size(At,2));
     info=[];
