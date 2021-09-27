@@ -1,8 +1,8 @@
-% SOSDEMO4 --- Matrix Copositivity
+% SOSDEMO4s --- Matrix Copositivity
 % Section 4.4 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2 x3 x4 x5;
+syms x1 x2 x3 x4 x5;
 vartable = [x1; x2; x3; x4; x5];
 
 % The matrix under consideration

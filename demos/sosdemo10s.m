@@ -1,8 +1,8 @@
-% SOSDEMO10 --- Set containment
+% SOSDEMO10s --- Set containment
 % Section 4.10 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2; 
+syms x1 x2;
 vartable = [x1 x2];
 
 eps = 1e-6;
@@ -39,9 +39,6 @@ prog = sossolve(prog,solver_opt);
 
 s = sosgetsol(prog,s);
 g1 = sosgetsol(prog,g1);
-
-% Display function g1 after removing small coefficients
-cleanpoly(g1,1e-4)
 
 % =============================================
 % If program is feasible, { x |((g0+g1) + theta)(theta - (g0+g1)) >=0 } contains { x | p <= gamma }

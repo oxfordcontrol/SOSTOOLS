@@ -1,8 +1,8 @@
-% SOSDEMO5 --- Upper bound for the structured singular value mu
+% SOSDEMO5s --- Upper bound for the structured singular value mu
 % Section 4.5 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2 x3 x4 x5 x6 x7 x8;
+syms x1 x2 x3 x4 x5 x6 x7 x8;
 vartable = [x1; x2; x3; x4; x5; x6; x7; x8];
 
 % The matrix under consideration
@@ -64,7 +64,7 @@ for i = 1:4
     end
 end
 % Constant term: I(x) = -(x1^4 + ... + x8^4)
-I = -(x1^4+x2^4+x3^4+x4^4+x5^4+x6^4+x7^4+x8^4);
+I = -sum(vartable.^4);
 expr = expr + I;
 
 prog = sosineq(prog,expr);

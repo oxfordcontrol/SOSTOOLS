@@ -1,8 +1,8 @@
-% SOSDEMO6 --- MAX CUT
+% SOSDEMO6s --- MAX CUT
 % Section 4.6 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2 x3 x4 x5;
+syms x1 x2 x3 x4 x5;
 vartable = [x1; x2; x3; x4; x5];
 
 % Number of cuts

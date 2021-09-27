@@ -1,8 +1,8 @@
-% SOSDEMO1 --- Sum of Squares Test
+% SOSDEMO1s --- Sum of Squares Test
 % Section 4.1 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2;
+syms x1 x2;
 vartable = [x1, x2];
 
 % =============================================

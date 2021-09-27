@@ -1,9 +1,8 @@
-% SOSDEMO3 --- Bound on Global Extremum
-% Section 4.3 of SOSTOOLS User's Manual 
+% SOSDEMO3s --- Bound on Global Extremum
+% Section 4.3 of SOSTOOLS User's Manual
 
 clear; echo on;
-pvar x1 x2 
-dpvar gam;
+syms x1 x2 gam;
 vartable = [x1, x2];
 
 % =============================================
@@ -12,7 +11,7 @@ prog = sosprogram(vartable);
 
 % =============================================
 % Declare decision variable gam too
-prog = sosdecvar(prog,gam);
+prog = sosdecvar(prog,[gam]);
 
 % =============================================
 % Next, define SOSP constraints
