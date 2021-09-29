@@ -34,16 +34,16 @@
 %    FINDBOUND   --- Find a global/constrained lower bound for a polynomial.
 % 
 % Demos:
-%    SOSDEMO1 and SOSDEMO1P   --- Sum of squares test.
-%    SOSDEMO2 and SOSDEMO2P   --- Lyapunov function search.
-%    SOSDEMO3 and SOSDEMO3P   --- Bound on global extremum.
-%    SOSDEMO4 and SOSDEMO4P   --- Matrix copositivity.
-%    SOSDEMO5 and SOSDEMO5P   --- Upper bound for the structured singular value mu.
-%    SOSDEMO6 and SOSDEMO6P   --- MAX CUT.
-%    SOSDEMO7                 --- Chebyshev polynomials.
-%    SOSDEMO8                 --- Bound in probability.
-%    SOSDEMO9 and SOSDEMO9P   --- Matrix SOS decomposition.
-%    SOSDEMO10 and SOSDEMO10P --- Set containment.
+%    SOSDEMO1 and SOSDEMO1S   --- Sum of squares test.
+%    SOSDEMO2 and SOSDEMO2S   --- Lyapunov function search.
+%    SOSDEMO3 and SOSDEMO3S   --- Bound on global extremum.
+%    SOSDEMO4 and SOSDEMO4S   --- Matrix copositivity.
+%    SOSDEMO5 and SOSDEMO5S   --- Upper bound for the structured singular value mu.
+%    SOSDEMO6 and SOSDEMO6S   --- MAX CUT.
+%    SOSDEMO7S                --- Chebyshev polynomials.
+%    SOSDEMO8S                --- Bound in probability.
+%    SOSDEMO9 and SOSDEMO9S   --- Matrix SOS decomposition.
+%    SOSDEMO10 and SOSDEMO10S --- Set containment.
 
 % This file is part of SOSTOOLS - Sum of Squares Toolbox ver 4.00.
 %
