@@ -36,7 +36,12 @@ function [ out ] = fastint2str( x )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
+% SS, 9/27/2021 added case with empty x
 
+if isempty(x)
+    out = {};
+    return
+end
 maxvalue=max(x);
 required_cols=ceil(log(double(maxvalue+1))/log(10));
 prefix = 'coeff_';

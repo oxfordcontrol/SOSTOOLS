@@ -45,7 +45,13 @@ if nargin==1
 else
     % Otherwise, start with concatenation of first two inputs
     E = varargin{1}; F = varargin{2};
-    if ~(size(E,1)==size(F,1))
+    if all(size(E)==0)
+        G = F;
+        return
+    elseif all(size(F)==0)
+        G = E;
+        return
+    elseif ~(size(E,1)==size(F,1))
         error('Objects being concatenated horizontally have different numbers of rows');
     end
     

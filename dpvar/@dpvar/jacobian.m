@@ -34,7 +34,7 @@ function J = jacobian(obj,vars)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % If you modify this code, document all changes carefully and include date
 % authorship, and a brief description of modifications
-% Initial coding, DJ, MP, SS - 06/29/2021
+% Initial coding, DJ, MP, SS - 09/27/2021
 % reusing some code from multipoly toolbox polynomial jacobian - start
 
 if nargin == 1
@@ -60,10 +60,12 @@ dvname = obj.dvarname;
 mdim = obj.matdim;
 nr = mdim(1);
 nc = mdim(2);
+nz = size(dmat,1);
+np = length(vname);
 
 
 % First build the block matrix
-Jdeg = sparse([]);
+Jdeg = spalloc(nz*Nx,np,Nx*nnz(dmat));
 coef = mat2cell(coef, (length(dvname)+1)*ones(nr,1), size(dmat,1)*ones(nc,1));
 Cnew = cell(nr,nc);
 for i=1:Nx
@@ -74,13 +76,13 @@ for i=1:Nx
     
     % Differentiate
     if isempty(varnumb)
-        Jcoef = zeros(size(dmat,1),1);
+        Jcoef = zeros(1,size(dmat,1));
     else
         Jcoef = dmat(:,varnumb)';
         
         tmpdeg = dmat;
         tmpdeg(:,varnumb) = max( dmat(:,varnumb)-1 , 0);
-        Jdeg = [Jdeg;tmpdeg];
+        Jdeg((i-1)*nz+1:i*nz,:) = tmpdeg;
     end
     zleft = sparse([],[],[],(length(dvname)+1),size(dmat,1)*(i-1));
     zright = sparse([],[],[],(length(dvname)+1),size(dmat,1)*(Nx-i));

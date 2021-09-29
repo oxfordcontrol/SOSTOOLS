@@ -34,12 +34,30 @@ function E = rdivide(E,f)
 % If you modify this code, document all changes carefully and include date
 % authorship, and a brief description of modifications
 %
-% Initial coding DJ, MP, SS  - 8_3_2021
+% Initial coding DJ, MP, SS  - 09/27/2021
 
-% check input types
-if (~isa(f, 'double') || ~isa(E,'dpvar')) && (f~=0) && numel(f)==1
-    error("For division involving dpvars, only numerator is dpvar while denominator is a non-zero double");
+% Check input types
+if ~isa(f,'double')
+    try
+        f = double(f);
+    catch
+        error('For division involving dpvars, denominator must be a non-zero double')
+    end
+end
+if any(f==0,'all') || (any(size(f)~=size(E)) && (numel(f)~=1))
+    error("For division involving dpvars, denominator must be non-zero scalar or double of same size as numerator");
 end
 
-E.C = E.C./f;
+if numel(f)==1
+    % Scalar division
+    E.C = E.C./f;
+else
+    % Divide coefficients according to the matrix element they're associated with
+    nd = length(E.dvarname)+1;
+    nz = size(E.degmat,1);
+
+    F = kron(f,ones(nd,nz));
+    E.C = E.C./F;
+end
+
 end

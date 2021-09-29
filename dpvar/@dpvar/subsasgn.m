@@ -90,7 +90,7 @@ function a = subsasgn(a,L,RHS)
 % If you modify this code, document all changes carefully and include date
 % authorship, and a brief description of modifications
 %
-% Initial coding, DJ, MP, SS - 07/02/2021
+% Initial coding, DJ, MP, SS - 09/27/2021
 % added correction to allow dynamic extension of dpvar size, SS - 8/10/2021
 
 switch L(1).type
@@ -114,7 +114,10 @@ switch L(1).type
             if isempty(a)
                 a = dpvar();
             end
-            if isa(RHS,'dpvar') % merge bases
+            if isempty(RHS)
+                a = col_row_remove(a,L);
+                return            
+            elseif isa(RHS,'dpvar') % merge bases
                 [a,RHS] = common_basis(a,RHS);
             elseif isa(RHS,'polynomial') % convert to dpvar, then merge bases
                 RHS = poly2dpvar(RHS);
@@ -122,9 +125,6 @@ switch L(1).type
             elseif isa(RHS,'double') % convert to dpvar, no change needed for dvarname, varname or degmat
                 RHS = dpvar(RHS);
                 [a,RHS] = common_basis(a,RHS);
-            elseif isempty(RHS) % currently not supported
-                disp("removing rows and cols using subassgn is under construction");
-                return
             end
             
             % Next, determine the rows and columns of the matrix that need to be changed
@@ -137,15 +137,26 @@ switch L(1).type
                 indc = L(1).subs{2};
             end
             
+            % Convert ':' to actual indices
+            if strcmp(indr,':')
+                indr = 1:a.matdim(1);
+            end
+            if strcmp(indc,':')
+                indc = 1:a.matdim(2);
+            end
+            
             % correction to allow index exceeding, expand matrix dimension
             if any(indr>a.matdim(1))
                 a.matdim(1) = max(indr);
             end
-            if strcmp(indc,':')
-                a.matdim(2) = 1;
-            elseif any(indc>a.matdim(2))
+            if any(indc>a.matdim(2))
                 a.matdim(2) = max(indc);
             end
+%             if strcmp(indc,':')
+%                 a.matdim(2) = 1;
+%             elseif any(indc>a.matdim(2))
+%                 a.matdim(2) = max(indc);
+%             end
             
             % expand coefficient matrix and reassign values 
             tmp = a.C;
@@ -156,7 +167,7 @@ switch L(1).type
             % matrix a.C. For this, identify corresponding locations of 
             % coefficients that need to be changed
             [idxI,idxJ, szR, szC] = getCindices(a,indr,indc);
-            if any(size(RHS)~=[szR,szC])
+            if any(size(RHS.C)~=[szR,szC])
                 error('Subassignment error: dimensions of objects on the left and the right of the equation do not match');
             end
             % Then, adjust the coefficients as specified
@@ -196,7 +207,8 @@ elseif length(indr)>=2
     szR = length(indr);
 else
     indr = (indr(1)-1)*Zdlen+1:(indr(1))*Zdlen;
-    szR = 1;
+    szR = length(indr);
+    %szR = 1;
 end
 
 if strcmp(indc,':')
@@ -208,10 +220,58 @@ elseif length(indc)>=2
     szC = length(indc);
 else
     indc = (indc(1)-1)*(Zplen)+1:(indc(1))*(Zplen);
-    szC = 1;
+    szC = length(indc);
+    %szC = 1;
 end
 
 if any(indr<=0) || any(indc<=0)
     error('Indices must be positive integers');
 end
+end
+
+function a = col_row_remove(a,L)
+% Remove columns and rows of a specified by L.
+% Note that L must refer to full rows or columns of a, it cannot refer to
+% just a single element a(i,j) of a.
+
+if length(L(1).subs)==1 && strcmp(L(1).subs{1},':')
+    a = dpvar([]);
+    return
+elseif length(L(1).subs)==1 && a.matdim(1)==1
+    indr = 1;
+    indc = L(1).subs{1};
+elseif length(L(1).subs)==1
+    indr = L(1).subs{1};
+    indc = ':';
+else
+    indr = L(1).subs{1};
+    indc = L(1).subs{2};
+end
+
+if strcmp(indr,':')
+    if strcmp(indc,':')
+        a = dpvar([]);
+    else
+        cfull = 1:a.matdim(2);
+        cretain = setdiff(cfull,indc);
+        Ctemp = a.C;
+        nz = size(a.degmat,1);
+        cCretain = cell2mat(cellfun(@(x) (x-1)*nz+1:x*nz,num2cell(cretain),'uni',0));
+        a.C = Ctemp(:,cCretain);
+        a.matdim = [a.matdim(1),length(cretain)];
+        a = combine(a);
+    end
+elseif strcmp(indc,':')
+    rfull = 1:a.matdim(1);
+    rretain = setdiff(rfull,indr);
+    Ctemp = a.C;
+    nd = length(a.dvarname)+1;
+    rCretain = cell2mat(cellfun(@(x) (x-1)*nd+1:x*nd,num2cell(rretain),'uni',0));
+    a.C = Ctemp(rCretain,:);
+    a.matdim = [length(rretain),a.matdim(2)];
+    a = combine(a);
+else
+    error('Null assignment must be specified for entire row or column')
+end
+
 end

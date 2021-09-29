@@ -39,7 +39,8 @@ function dpvar_out = poly2dpvar(pvar_in, dvarname)
 % authorship, and a brief description of modifications
 % 
 % Initial coding, DJ, MP, SS - 06/13/2021
-
+% SS - 09/26/2021, added special case of polynomials with one or more zero
+% dimensions
 
 if ~isa(pvar_in, 'polynomial')
     error('Input object must be of type polynomial');
@@ -72,6 +73,17 @@ else
     % Should we have a unique function to assure no dvar is specified
     % twice? Alternatively, use DPcombine to remove redundant
     % variable names at the end
+end
+
+% special case of polynomials with zero dimensions, early exit
+if size(pvar_in,1)*size(pvar_in,2)==0
+    matdim = pvar_in.matdim;
+    pvarname = {};
+    dvarname = {};
+    degmat = [];
+    C = zeros(matdim(1)*(length(dvarname)+1),matdim(2)*(size(degmat,1)));
+    dpvar_out = dpvar(C,degmat,pvarname,dvarname,matdim);
+    return
 end
 
 % Extract the set of polynomial variable names

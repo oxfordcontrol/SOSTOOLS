@@ -1,4 +1,4 @@
-function Fdiag = blkdiag(varargs)
+function Fdiag = blkdiag(varargin)
 % F = blkdiag(varargs) generates a block diagonal dpvar object using
 % varargs as the diag blocks
 % 
@@ -37,19 +37,19 @@ function Fdiag = blkdiag(varargs)
 % If you modify this code, document all changes carefully and include date
 % authorship, and a brief description of modifications
 %
-% Initial coding DJ, MP, SS - 06/20/2021
+% Initial coding DJ, MP, SS - 09/27/2021
 
 if nargin==1
-    Fdiag=varargs{1};
+    Fdiag=varargin{1};
 else % sequentially creating a block diagonal matrix
-    A = varargs{1}; B = varargs{2};
+    A = varargin{1}; B = varargin{2};
     
     % ensure classes are same type
     if ~isa(A,'dpvar')
-        A = poly2dpvar(A);
+        A = dpvar(A);
     end
     if ~isa(B,'dpvar')
-        B = poly2dpvar(B);
+        B = dpvar(B);
     end
     
     mdim = A.matdim+B.matdim;
@@ -61,7 +61,7 @@ else % sequentially creating a block diagonal matrix
     Cnew = blkdiag(Anew.C,Bnew.C);
     Fdiag = dpvar(Cnew, Anew.degmat, Anew.varname, Anew.dvarname, mdim); 
     if nargin>2 % repeat when there are more than two block elements
-        Fdiag = blkdiag(Fdiag,varargs{3:end});
+        Fdiag = blkdiag(Fdiag,varargin{3:end});
     end
 end
 end
