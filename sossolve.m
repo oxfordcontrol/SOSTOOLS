@@ -27,7 +27,7 @@ function [sos,info] = sossolve(sos,options)
 %                                      A. Papachristodoulou (1), J. Anderson (1),
 %                                      G. Valmorbida (2), S. Prajna (3),
 %                                      P. Seiler (4), P. A. Parrilo (5),
-%                                      M. Peet (6), D. Jagt (6), A. Talitckii (6),
+%                                      M. Peet (6), D. Jagt (6)
 % (1) Department of Engineering Science, University of Oxford, Oxford, U.K.
 % (2) Laboratoire de Signaux et Systmes, CentraleSupelec, Gif sur Yvette,
 %     91192, France
@@ -252,10 +252,8 @@ elseif strcmp(lower(options.solver),'mosek')
     size_At = size(At);
     disp(['Size: ' num2str(size_At)]);
     disp([' ']);
-    tic
     prob = Sedumi2Mosek(At',b,c,K);
-    toc
-    [~,res] = mosekopt('minimize info',prob,pars);
+    [~,res] = mosekopt('minimize info',prob);
     [x,Y] = MosekSol2SedumiSol(K,res);
     y=Y(1:size(At,2));
     info=[];
