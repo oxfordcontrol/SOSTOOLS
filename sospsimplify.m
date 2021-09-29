@@ -1,5 +1,24 @@
-function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,Nsosvarc)
+function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,Nsosvarc, tol)
 % function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,Nsosvarc)
+% 
+% INPUT
+% A - a constraint matrix that needs to be simplified (A*x = b)
+% b - a constraint vector that needs to be simplified (A*x = b)
+% K - describe the PSD cone in the Sedumi format
+% z - vector of monomials
+% dv2x - map between Sedumi variable and A matrix
+% Nsosvarc - Number of PD constraints
+% tol - desired tolerance for the simplification procedure
+%
+% OUTPUT
+% A - simplified matrix A
+% b - simplified vector b
+% K - simplofied K
+% dv2x - map reduced between environment variables and monomials
+% Nfv  - the number of free variables
+% feas - 0 if the problem is clearly infeasible, 1 otherwise
+% zrem - removed monomials
+% removed_rows - removed rows of matrix A
 %
 % DESCRIPTION 
 %   This function performs a simplification procedure on the SOS problem.
@@ -25,7 +44,7 @@ function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,
 %                                      A. Papachristodoulou (1), J. Anderson (1),
 %                                      G. Valmorbida (2), S. Prajna (3), 
 %                                      P. Seiler (4), P. A. Parrilo (5),
-%                                      M. Peet (6), D. Jagt (6)
+%                                      M. Peet (6), D. Jagt (6), A. Talitckii (6),
 % (1) Department of Engineering Science, University of Oxford, Oxford, U.K.
 % (2) Laboratoire de Signaux et Systmes, CentraleSupelec, Gif sur Yvette,
 %     91192, France
@@ -59,16 +78,21 @@ function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,
 % 12/14/10 PJS Bug related to re-indexing of dv2x when removing free vars  
 % 9/11/21 AT - add new output 'removed rows' to aid in reconstruction in SOSTOOLS 
 %              removed equality constraints for remaining dec vars known to be zero
+% 09/11/21 AT Bug related to A( : , abs(xsign)< tol ) = 0;
+%             Change all element-wise operations to 'spfun' for sparse matrix
 
 
 %--------------------------------------------------------------------
 % Grab problem dimensions
 %--------------------------------------------------------------------
 Nfv = K.f;
-Nlp = K.l;
-%Nsv = sum( K.s(1:Nsosvarc).^2 );
+Nlp = K.l; 
 Nx = size(A,2);
 
+
+% XXX -- We need a tolerance here.  How should we choose tol?
+% Should It be the same tolerance as sedumi solver?. 
+% tol = 1e-12;
 %--------------------------------------------------------------------
 % Find non-negative optimization variables
 %--------------------------------------------------------------------
@@ -93,13 +117,17 @@ end
 %--------------------------------------------------------------------
 % Find dec vars and monomials that can be removed
 %--------------------------------------------------------------------
+
 go = 1;
 zrem = cell(length(K.s),1);
 xsignprev = xsign;
 while (go == 1)
     % Use simple constraints to determine sign of optimization vars. 
-    xsign = LOCALxsignupdate(xsign,A,b);
-    A( : , xsign==0 ) = 0;
+    xsign = LOCALxsignupdate(xsign,A,b, tol);
+    
+    % AT: This line can make unfeasible problem to feasible, look at
+    % test_dpvar_SOS_nonlinear_stability (n, deg, rng) = (3, 3, 70)
+    %     A( : , abs(xsign)< tol ) = 0;
     
     % Monomial reduction procedure 
     % (This is equivalent to the Newton Polytope method)
@@ -107,9 +135,12 @@ while (go == 1)
     for i1=1:length(K.s)
         % Find diag entries of Q that are forced to be zero
         lz = K.s(i1);
+%         if lz <15
+%             continue
+%         end
         blkidx = ptr+(1:lz^2);
-        Qsign = diag( reshape(xsign(blkidx),[lz lz]) );
-        loc = find(Qsign==0);        
+        Qsign = diag(mat(xsign(blkidx)));
+        loc = find(abs(Qsign)< tol);        
         if ~isempty(loc)
             % Corresponding rows/cols of zero diag entries are also zero
             tmp = sparse(lz,lz);
@@ -120,6 +151,7 @@ while (go == 1)
             
             % Remove vars/monoms associated with zero Gram matrix entries
             A(:,rmidx) = [];
+%             AA(:,rmidx) = [];
             xsign(rmidx) = [];
             zrem{i1} = [zrem{i1}; z{i1}(loc)];
             z{i1}(loc) = [];
@@ -130,7 +162,7 @@ while (go == 1)
                 K.s(i1) = length( z{i1} );
             end
             
-            % Update the mapping of dec vars into the optimization vars
+%             Update the mapping of dec vars into the optimization vars
             if i1<=Nsosvarc
                 % Number of optim vars to remove
                 Nremove = length(rmidx);
@@ -142,8 +174,10 @@ while (go == 1)
                 dv2x( ismember(dv2x,rmidx) ) = 0;
                           
                 % Relabel the remaining dec vars in this block
-%                idx = find( tril(ones(K.s(i1))) );                            
-                idx = find( ones(K.s(i1)) );    
+                % AT 09/10/2021 sostools uses all variable and not just a
+                % low triangle part like sosp
+                
+                idx = find( ones(K.s(i1)) );                            
                 dv2x( ismember(dv2x,blkidx) ) = ptr+idx;
                                 
                 % Relabel remaining dec vars in subsequent blocks
@@ -166,14 +200,13 @@ end
 %--------------------------------------------------------------------
 
 % Mark removed free decision vars
-rmidx = find( xsign(1:K.f)==0 );
+rmidx = find( abs(xsign(1:K.f))< tol );
 dv2x( ismember(dv2x,rmidx) ) = 0;
 idx = find(dv2x<=K.f & dv2x>0);
 A(:,rmidx) = [];
 xsign(rmidx) = [];
 Nremf = length(rmidx);
 K.f = K.f - Nremf;  
-%K.f = K.f - length(rmidx);  
 Nfv = K.f;
 dv2x(idx) = 1:Nfv;
 
@@ -181,10 +214,10 @@ idx2 = find(dv2x>K.f & dv2x>0);
 dv2x(idx2) = dv2x(idx2)-Nremf;
 
 % Remove any constraints of the form 0=0 
-% XXX -- We need a tolerance here.  How should we choose tol?
-tol = 1e-9;
-ridx = find( sum(A~=0,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
+ridx = find( sum(abs(A)>tol,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
 A(ridx,:) = [];
+
+% just a new output
 removed_rows = ridx;
 b(ridx) = [];
 
@@ -195,7 +228,7 @@ if isempty(A)
     feas = 1;
     return    
 else
-    ridx = find( sum(A~=0,2)==0 & abs(b)>tol*max(abs(b)) );
+    ridx = find( sum(abs(A)>tol,2)==0 & abs(b)>tol*max(abs(b)) );
 end
 feas = 1;
 if ~isempty(ridx)
@@ -203,6 +236,7 @@ if ~isempty(ridx)
 end
 
 % Add equality constraints for remaining dec vars known to be zero
+% Now sossolve set the values equal 0.
 % idx = find( xsign==0 );
 % lidx = length(idx);
 % A(end+1:end+lidx,idx) = speye(lidx);
@@ -213,70 +247,84 @@ end
 %--------------------------------------------------------------------
 % Local function to update sign of optimization var 
 %--------------------------------------------------------------------
-function xsign = LOCALxsignupdate(xsignOld,A,b)
-
+function xsign = LOCALxsignupdate(xsignOld,A,b, tol)
+% AT: change a lot of elementwise operations to 
+%     spfun(@function, sparse matrix)
+% The tolerance is used for sign function 
+% Now the sign function is used without tolerance
 % Initialize output
 xsign = xsignOld;
 
 % Process constraints of the form:  aij*xj = bi
-ridx = find(  sum(A~=0,2)==1  );
+ridx = find(  sum(spones(A), 2)==1  );
 if ~isempty(ridx)
     [cidx,tmp]=find( A(ridx,:)' );
     idx = sub2ind(size(A),ridx,cidx);
-
-    signA = sign( A(idx) );
-    signb = sign( b(ridx) );    
+    % change element wise operation for sparse matrix.
+    signA = spfun(@sign, A(idx) );
+    signb = spfun(@sign, b(ridx) );    
     xsignUpdate = signA.*signb;
-    
-    % XXX PJS 12/07/09: If cidx = [2;2] and xsignUpdate = [1; NaN] then 
-    % the next line will replace xsign(2) with NaN because the last index 
-    % in a subsasgn wins. This caused problems on a GSOSOPT problem.
-    %
-    %xsign(cidx) = LOCALupdate(xsign(cidx),xsignUpdate);
-    
-    % The correct code (also below) is below.  I'll try to vectorize
-    % if speed becomes an issue.
-    for i1 =1:length(cidx)
-        xsign(cidx(i1)) = LOCALupdate(xsign(cidx(i1)),xsignUpdate(i1));
-    end
-        
+    xsignUpdate =  signb;
+ 
+%     % XXX PJS 12/07/09: If cidx = [2;2] and xsignUpdate = [1; NaN] then 
+%     % the next line will replace xsign(2) with NaN because the last index 
+%     % in a subsasgn wins. This caused problems on a GSOSOPT problem.
+%     %
+%     % xsign(cidx) = LOCALupdate(xsign(cidx),xsignUpdate);
+%     
+%     % The correct code (also below) is below.  I'll try to vectorize
+%     % if speed becomes an issue.
+% %     for i1 =1:length(cidx)
+% %         xsign(cidx(i1)) = LOCALupdate(xsign(cidx(i1)),xsignUpdate(i1));
+% %     end
+
+    xsign(cidx) = LOCALupdate(xsign(cidx),xsignUpdate);
 end
-
-% Process constraints of the form:  aij*xj + aik*xk = bi
-ridx = find(  sum(A~=0,2)==2  );
+% 
+% % Process constraints of the form:  aij*xj + aik*xk = bi
+ridx = find(  sum(spones(A), 2) == 2  );
 if ~isempty(ridx)
-    [cidx,tmp]=find( A(ridx,:)' );
-    cidx = reshape(cidx,[2 length(ridx)])';
+    [cidx, tmp]=find( abs(A(ridx,:))' > tol );
+    cidx  = reshape(cidx,[2 length(ridx)])';
     cidx1 = cidx(:,1);
-    idx1 = sub2ind(size(A),ridx,cidx1);
+    idx1  = sub2ind(size(A),ridx,cidx1);
     cidx2 = cidx(:,2);
-    idx2 = sub2ind(size(A),ridx,cidx2);
+    idx2  = sub2ind(size(A),ridx,cidx2);
 
-    c1 = b(ridx)./A(idx1);
-    c2 = -A(idx2)./A(idx1);
+    c1 = sign(b(ridx)./A(idx1));
+    c2 = sign(-A(idx2)./A(idx1));
     xsignUpdate = NaN([length(ridx) 1]);
     xsignUpdate( c1<=0 & (c2.*xsign(cidx2)<=0) ) = -1;
     xsignUpdate( c1>=0 & (c2.*xsign(cidx2)>=0) ) = +1;
-    %xsign(cidx1) = LOCALupdate(xsign(cidx1),xsignUpdate);
-    for i1 =1:length(cidx1)
-        xsign(cidx1(i1)) = LOCALupdate(xsign(cidx1(i1)),xsignUpdate(i1));
-    end
     
-    c1 = b(ridx)./A(idx2);
-    c2 = -A(idx1)./A(idx2);
+    xsign(cidx1) = LOCALupdate(xsign(cidx1),xsignUpdate);
+    idx_update = ((xsignUpdate == 1) | (xsignUpdate == -1));
+    xsign(cidx1(idx_update)) = LOCALupdate(xsign(cidx1(idx_update)),xsignUpdate(idx_update));
+%     for i1 =1:length(cidx1)
+%         if ((xsignUpdate == 1) | (xsignUpdate == -1))
+%             xsign(cidx1(i1)) = LOCALupdate(xsign(cidx1(i1)),xsignUpdate(i1));
+%         end
+%     end
+    
+    c1 = sign(b(ridx)./A(idx2));
+    c2 = sign(-A(idx1)./A(idx2));
     xsignUpdate = NaN([length(ridx) 1]);
     xsignUpdate( c1<=0 & (c2.*xsign(cidx1)<=0) ) = -1;
     xsignUpdate( c1>=0 & (c2.*xsign(cidx1)>=0) ) = +1;
-    %xsign(cidx2) = LOCALupdate(xsign(cidx2),xsignUpdate);
-    for i1 =1:length(cidx2)
-        xsign(cidx2(i1)) = LOCALupdate(xsign(cidx2(i1)),xsignUpdate(i1));
-    end        
+    xsign(cidx2) = LOCALupdate(xsign(cidx2),xsignUpdate);
+    idx_update = ((xsignUpdate == 1) | (xsignUpdate == -1));
+    xsign(cidx1(idx_update)) = LOCALupdate(xsign(cidx1(idx_update)),xsignUpdate(idx_update));
+%     for i1 =1:length(cidx2)
+%         if ((xsignUpdate == 1) | (xsignUpdate == -1))
+%             xsign(cidx1(i1)) = LOCALupdate(xsign(cidx1(i1)),xsignUpdate(i1));
+%         end
+%     end        
 end
 
-% Process constraints of the form:  aij*xj + aik*xk + ail*xl= 0
-% where aij*xj, aik*xk, ail*xl all have the same sign.  
-% This implies that each of the three vars  = 0
-ridx = find(  sum(A~=0,2)==3 & b==0 );
+% % Process constraints of the form:  aij*xj + aik*xk + ail*xl= 0
+% % where aij*xj, aik*xk, ail*xl all have the same sign.  
+% % This implies that each of the three vars  = 0
+ridx = find(  sum(spones(A),2)==3 & spones(b) < tol );
 if ~isempty(ridx)
     [cidx,tmp]=find( A(ridx,:)' );
     cidx = reshape(cidx,[3 length(ridx)])';
@@ -288,8 +336,8 @@ if ~isempty(ridx)
     idx3 = sub2ind(size(A),ridx,cidx3);
 
     % All terms are non-neg
-    rsign = (A(idx1).*xsign(cidx1)>=0) & (A(idx2).*xsign(cidx2)>=0) ...
-                & (A(idx3).*xsign(cidx3)>=0);
+    rsign = (sign(A(idx1)).*xsign(cidx1)>=tol) & (sign(A(idx2)).*xsign(cidx2)>=tol) ...
+                & (sign(A(idx3)).*xsign(cidx3)>=tol);
     idx = find(rsign==1);    
     for i1=idx
         xsign(cidx1(i1)) = 0;
@@ -298,8 +346,8 @@ if ~isempty(ridx)
     end
     
     % All terms are non-pos
-    rsign = (A(idx1).*xsign(cidx1)<=0) & (A(idx2).*xsign(cidx2)<=0) ...
-                & (A(idx3).*xsign(cidx3)<=0);
+    rsign = (sign(A(idx1)).*xsign(cidx1)<=-tol) & (sign(A(idx2)).*xsign(cidx2)<=-tol) ...
+                & (sign(A(idx3)).*xsign(cidx3)<=-tol);
     idx = find(rsign==1);    
     for i1=idx
         xsign(cidx1(i1)) = 0;
@@ -311,13 +359,11 @@ end
 %--------------------------------------------------------------------
 % Local function to update sign of optimization var
 %--------------------------------------------------------------------
-function xsignNew = LOCALupdate(xsign,xsignUpdate)
-
+function xsignNew = LOCALupdate(xsign,xsignUpdate) 
 % Find constraints that force ai=0, ai<0 and ai>0
-zidx = find( (xsignUpdate==0) | (xsign==-1 & xsignUpdate>0) | ...
-    (xsign==+1 & xsignUpdate<0) );
-nidx = find( isnan(xsign) & xsignUpdate<0 );
-pidx = find( isnan(xsign) & xsignUpdate>0 );
+zidx = find( (xsignUpdate==0) | (xsign==-1 & xsignUpdate>0.5) |  (xsign==+1 & xsignUpdate<-0.5));
+nidx = find( isnan(xsign) & xsignUpdate<-0.5);
+pidx = find( isnan(xsign) & xsignUpdate>0.5 );
 
 % Update xsign
 xsignNew = xsign;
@@ -325,3 +371,4 @@ xsignNew( zidx ) = 0;
 xsignNew( nidx ) = -1;
 xsignNew( pidx ) = +1;
 
+ 

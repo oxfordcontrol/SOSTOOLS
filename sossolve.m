@@ -27,7 +27,7 @@ function [sos,info] = sossolve(sos,options)
 %                                      A. Papachristodoulou (1), J. Anderson (1),
 %                                      G. Valmorbida (2), S. Prajna (3),
 %                                      P. Seiler (4), P. A. Parrilo (5),
-%                                      M. Peet (6), D. Jagt (6)
+%                                      M. Peet (6), D. Jagt (6), A. Talitckii (6),
 % (1) Department of Engineering Science, University of Oxford, Oxford, U.K.
 % (2) Laboratoire de Signaux et Systmes, CentraleSupelec, Gif sur Yvette,
 %     91192, France
@@ -61,13 +61,14 @@ function [sos,info] = sossolve(sos,options)
 % 12/25/01 - SP
 % 01/05/02 - SP - primal
 % 01/07/02 - SP - objective
-% aug/13 - JA,GV - CDSP,SDPNAL,SDPA solvers and SOS matrix decomposition
+% aug/13   - JA,GV - CDSP,SDPNAL,SDPA solvers and SOS matrix decomposition
 % 06/01/16 - JA - added interface to frlib facial reduction package by
 %                 F Permenter and PP.
-% 01/04/18 - AP - Added CDCS and SDPNALplus
+% 01/04/18  - AP - Added CDCS and SDPNALplus
 % 6/27/2020 - MP, SS - Added mosek as an optional solver
-% 9/11/2021 - AT - created interface to sospsimplify
+% 09/11/2021 - AT - Created interface to sospsimplify
 % 09/11/2021 - DJ - Added feasibility check after sospsimplify
+% 09/25/2021  - AT - Added default parameters for sospsimlify. 
 
 if (nargin==1)
     %Default options from old sossolve
@@ -85,6 +86,24 @@ elseif ((nargin==2) & ~isnumeric('options') )%2 arguments given,
 end
 
 
+% AT (09/25/2021) Default options for sospsimplify
+if isfield(options,'simplify') 
+    if (strcmp(options.simplify,'on') | (options.simplify == 1) | strcmp(options.simplify,'turn on') | strcmp(options.simplify,'simplify'))
+        options.simplify = 1;
+    elseif (strcmp(options.simplify,'off') | strcmp(options.simplify, 0) | strcmp(options.simplify,'turn off'))
+        options.simplify = 0;
+    else
+        warning("options.simplify should be one of the options 'on', 1, 'simplify', 'off', '0'");
+        warning("Set simplify off by default");
+        
+        % sospsimplify is disabled if the user used an unapproved input
+        options.simplify = 0;
+    end
+else
+    % sospsimplify off by default
+    options.simplify = 0;
+end
+
 %whenever nargin>=2 options are overwritten
 if (nargin==3)
     error('Current SOSTOOLS version does not support call to sossolve with 3 arguments, see manual.');
@@ -99,7 +118,9 @@ sos.extravar.idx{1} = sos.var.idx{sos.var.num+1};
 % SOS variables
 I = [find(strcmp(sos.expr.type,'ineq')), find(strcmp(sos.expr.type,'sparse')), find(strcmp(sos.expr.type,'sparsemultipartite'))];
 if ~isempty(I)
+    tic
     sos = addextrasosvar(sos,I);
+    toc
 end;
 % SOS variables type II (restricted on interval)
 I = find(strcmp(sos.expr.type,'posint'));
@@ -134,38 +155,36 @@ c = RR'*c;
 pars = options.params;
 
 % AT - created interface to sospsimplify
-if isfield(options,'simplify')
-    if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
-        
-        fprintf('Running simplification process:\n')
-        At_full = At';   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
-        b_full = b;     K_full = K;
-        size_At_full = size(At_full);
-        Nsosvarc = length(K.s);
-        dv2x = 1:size_At_full(2);
-        %     z = 1:size_At_full(2);
-        K_full.l = 0;
-        
-        for i= 1:Nsosvarc
-            Zmonom{i} = (1:K.s(i))';
-        end
-        
-        [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc);
-        
-        fprintf('Old A size: %d  %d\n', size(At));
-        fprintf('New A size: %d  %d\n', size(A'));
-        % 	[prg_primal] = frlib_pre(options.frlib,At',b,c,K); %interface with frlib
-        At = A';  %reduced SDP matrices
-        b = b;
-        chosen_idx = (dv2x ~= 0);
-        c = c(chosen_idx);
-        K = K;
-        size_AT_solved = size(At);
-        if size(At,2)~=length(b) | length(b) > length(c)
-            error('Error simplifying the problem, it may be infeasible. Try running without ''simplify''.')
-        end
-        
+feassosp = 1; %09/25/21 the default value, it is used for sospsimplify
+if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
+
+    fprintf('Running simplification process:\n')
+    At_full = At';   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
+    b_full = b;     K_full = K;
+    size_At_full = size(At_full);
+    % Some initial parameters for sospsimplify
+    Nsosvarc = length(K.s);
+    dv2x = 1:size_At_full(2);
+    K_full.l = 0;
+
+    for i= 1:Nsosvarc
+        Zmonom{i} = (1:K.s(i))';
     end
+    %A,b,K -reduced matrices
+    [A,b,K,z,dv2x,Nfv,feassosp,zrem,removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc, pars.tol);
+
+    fprintf('Old A size: %d  %d\n', size(At));
+    fprintf('New A size: %d  %d\n', size(A'));
+    % 	[prg_primal] = frlib_pre(options.frlib,At',b,c,K); %interface with frlib
+    At = A';  %reduced SDP matrices
+    b = b;
+    chosen_idx = (dv2x ~= 0);
+    c = c(chosen_idx);
+    K = K;
+    size_AT_solved = size(At);
+    %if size(At,2)~=length(b) | length(b) > length(c)
+    %    error('Error simplifying the problem, it may be infeasible. Try running without ''simplify''.')
+    %end
     %perform facial reduction using FP's algorithm (JA 5/1/16)
 elseif isfield(options,'frlib')
     At_full = At;   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
@@ -180,10 +199,27 @@ elseif isfield(options,'frlib')
     size_AT_solved = size(At);
     
     if size(At,2)~=length(b) | length(b) > length(c)
-        error('Error simplifying the problem, it may be infeasible. Try running without ''simplify''.')
+        error('Error simplifying the problem, it may be infeasible. Try running without ''frlib''.')
     end
 else
     size_At_full = size(At);
+end
+
+% AT - 9/28/2021
+if feassosp == 0 % if the sospsimplify returns infeasible solution. The default value is 1 
+    % If the problem is clearly infeasible, sedumi can return error
+    % Return no solution if the problem is clearly infeasible from sospsimplify. 
+    fprintf(2,'\n Warning: Primal program infeasible, no solution produced.\n')
+    info.iter = 0;
+    info.feasratio = -1;
+    info.pinf = 1;
+    info.dinf = 1;
+    info.numerr = 0;
+    info.timing = 0;
+    info.cpusec = 0; 
+    sos.solinfo.info = info;
+    sos.solinfo.solverOptions = options;
+    return
 end
 
 if strcmp(lower(options.solver),'sedumi')
@@ -216,7 +252,9 @@ elseif strcmp(lower(options.solver),'mosek')
     size_At = size(At);
     disp(['Size: ' num2str(size_At)]);
     disp([' ']);
+    tic
     prob = Sedumi2Mosek(At',b,c,K);
+    toc
     [~,res] = mosekopt('minimize info',prob,pars);
     [x,Y] = MosekSol2SedumiSol(K,res);
     y=Y(1:size(At,2));
@@ -464,35 +502,40 @@ elseif strcmp(lower(options.solver),'sdpa')
 end;
 
 % DJ - Avoid multiplication with empty array if infeasible
-if info.pinf && isempty(x)
-    disp('Primal program infeasible, no solution produced')
+if info.pinf && isempty(x)  
+    fprintf(2,'\n Warning: Primal program infeasible, no solution produced.\n')
+    info.iter = 0;
+    info.feasratio = -1;
+    info.pinf = 1;
+    info.dinf = 1;
+    info.numerr = 0;
+    info.timing = 0;
+    info.cpusec = 0; 
     sos.solinfo.info = info;
     sos.solinfo.solverOptions = options;
     return
 end
 
 % AT - added interface to sospsimplify (9/11/2021)
+% post-processing
+if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
+    %if isfield(prog1_sosp.solinfo.info,'pinf')&&prog1_sosp.solinfo.info.pinf==0
+    %if isfield(prog1_sosp.solinfo.info,'pinf')&&prog1_sosp.solinfo.info.pinf==0
+    At = At_full';  %Restore original matrices
+    b = b_full;
+    c = c_full;
+    K = K_full;
+    xx = zeros(size(At_full, 2), 1); % if we remove it using sospsimplify it must be 0
 
-if isfield(options,'simplify')
-    if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
-        %if isfield(prog1_sosp.solinfo.info,'pinf')&&prog1_sosp.solinfo.info.pinf==0
-        %if isfield(prog1_sosp.solinfo.info,'pinf')&&prog1_sosp.solinfo.info.pinf==0
-        At = At_full';  %Restore original matrices
-        b = b_full;
-        c = c_full;
-        K = K_full;
-        xx = zeros(size(At_full, 2), 1);
-        xx(chosen_idx) = x;
-        yy = zeros(size(At_full, 1), 1);
-        row_idx = ones(size(At_full, 1), 1);
-        row_idx(removed_rows) = 0;
-        yy(row_idx == 1) = y;
-        y = yy;
-        x = xx;
-        %end
-        %end
-    end
-    %JA frlib post-process
+    xx(chosen_idx) = x;    % restore the solution
+    yy = zeros(size(At_full, 1), 1);    % restore dual multipliers
+    row_idx = ones(size(At_full, 1), 1);    
+    row_idx(removed_rows) = 0;    
+    yy(row_idx == 1) = y;% restore dual multipliers
+    y = yy;
+    x = xx;
+    %end
+    %end    %JA frlib post-process
 elseif isfield(options,'frlib') && size_AT_solved(1) < size_At_full(1) %frlib applied and reduction constructed
     dim_b = length(b_full);
     [x,y] = frlib_post(prg_primal,x,y,dim_b);
@@ -834,4 +877,3 @@ end;
 At = RR'*Atf;
 
 b = bf;
-
