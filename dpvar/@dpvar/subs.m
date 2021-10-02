@@ -38,7 +38,7 @@ function Esub = subs(E, pvars, val)
 % authorship, and a brief description of modifications
 %
 % Initial coding DJ, MP, SS - 07/19/2021
-% 09/30/2021, DJ: Small correction in case where substitution returns a 
+% 10/01/2021, DJ: Small correction in case where substitution returns a 
 % double.
 
 % Account for some trivial cases
@@ -83,9 +83,8 @@ Z=polynomial(speye(nz),E.degmat,E.varname,[nz,1]);
 temp=subs(Z,pvars,val);
 
 % Build the new dpvar based on these substituted monomial terms
-if isdouble(temp)
-    temp = double(temp); % DJ 09/30/21
-    Esub = dpvar(E.C*kron(speye(E.matdim(2)),temp'), zeros(1,0), {}, E.dvarname, E.matdim);
+if isa(temp,'double') % DJ 10/01/21
+    Esub = dpvar(E.C*kron(speye(E.matdim(2)),temp), zeros(1,0), {}, E.dvarname, E.matdim);
 else % multiply only coefficients if temp is a polynomial 
     Esub = dpvar(E.C*kron(speye(E.matdim(2)),temp.coeff'), temp.degmat, temp.varname, E.dvarname, E.matdim);
 end
