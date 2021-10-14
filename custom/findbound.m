@@ -73,6 +73,7 @@ function [GAM,vars,xopt] = findbound(p,ineq,eq,DEG,options)
 % Change log and developer notes
 
 % switched gam to dpvar -MMP 8/6/2021
+% Adjusted to use symvar instead of findsym - DJ, 10/14/2021
 switch nargin
     case 1 
         options.solver='sedumi';
@@ -108,8 +109,8 @@ vect = [p; ineq; eq];
 
 % Find the independent variables, check the degree
 if isa(vect,'sym')
-   varschar = findsym(vect);
-   vars = sym(['[',varschar,']']);
+   %varschar = findsym(vect);  %vars = sym(['[',varschar,']']);
+   vars = symvar(vect);         % DJ, 10-14-2021
    nvars = size(vars,2) ; 
    if nargin > 2
        degree = 2*floor(DEG/2);
