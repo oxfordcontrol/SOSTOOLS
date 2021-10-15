@@ -284,7 +284,7 @@ end
 % % Process constraints of the form:  aij*xj + aik*xk = bi
 ridx = find(  sum(spones(A), 2) == 2  );
 if ~isempty(ridx)
-    [cidx, tmp]=find( abs(A(ridx,:))' > tol );
+    [cidx, tmp] = find( A(ridx,:)'  ); %remove tolerance, AT 10-15-21
     cidx  = reshape(cidx,[2 length(ridx)])';
     cidx1 = cidx(:,1);
     idx1  = sub2ind(size(A),ridx,cidx1);
