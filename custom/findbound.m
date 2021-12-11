@@ -74,6 +74,7 @@ function [GAM,vars,xopt] = findbound(p,ineq,eq,DEG,options)
 
 % switched gam to dpvar -MMP 8/6/2021
 % Adjusted to use symvar instead of findsym - DJ, 10/14/2021
+% Removed num2cell in case when variables are pvar - DJ, 12/10/2021
 switch nargin
     case 1 
         options.solver='sedumi';
@@ -217,31 +218,56 @@ else
     ix = find(sum(prog.extravar.Z{1},2)==1) ;
     xopt = prog.solinfo.extravar.dual{1}(ix,1) ;
     vars = vars.';
-    
+        
+    if isa(vars,'sym')   % DJ, check class type, 12-10-2021
     % If the upper and lower bounds are close (absolute or relative), return them
-    ach = double(subs(p,num2cell(vars).',num2cell(xopt).'));
-
-    
-    if min(abs(ach/GAM-1),abs(ach-GAM)) > 1e-4 ; 
-        xopt = [];
-        return;
+        ach = double(subs(p,num2cell(vars).',num2cell(xopt).'));
+        
+        if min(abs(ach/GAM-1),abs(ach-GAM)) > 1e-4 ;
+            xopt = [];
+            return;
+        end
+        
+        % Check inequality and equality constraints
+        if length(ineq)>1
+            ineq = double(subs(ineq,num2cell(vars).',num2cell(xopt).'));
+        else
+            ineq = 0;
+        end;
+        if length(eq)>1
+            eq = double(subs(eq,num2cell(vars).',num2cell(xopt).'));
+        else
+            eq = 0;
+        end;
+        if min(ineq)<-1e-6 | max(abs(eq))>1e-6
+            xopt = [];
+            return;
+        end;
+    else
+    % If the upper and lower bounds are close (absolute or relative), return them
+        ach = double(subs(p,vars,xopt));
+        
+        if min(abs(ach/GAM-1),abs(ach-GAM)) > 1e-4
+            xopt = [];
+            return;
+        end
+        
+        % Check inequality and equality constraints
+        if length(ineq)>1
+            ineq = double(subs(ineq,vars,xopt));
+        else
+            ineq = 0;
+        end
+        if length(eq)>1
+            eq = double(subs(eq,vars,xopt));
+        else
+            eq = 0;
+        end
+        if min(ineq)<-1e-6 || max(abs(eq))>1e-6
+            xopt = [];
+            return;
+        end        
     end
-    
-    % Check inequality and equality constraints
-    if length(ineq)>1
-        ineq = double(subs(ineq,num2cell(vars).',num2cell(xopt).'));
-    else
-        ineq = 0;
-    end;
-    if length(eq)>1
-        eq = double(subs(eq,num2cell(vars).',num2cell(xopt).'));
-    else
-        eq = 0;
-    end;
-    if min(ineq)<-1e-6 | max(abs(eq))>1e-6
-        xopt = [];
-        return;
-    end;
     
 
     
