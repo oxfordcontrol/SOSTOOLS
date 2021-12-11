@@ -62,6 +62,7 @@ function [sos,P] = sospolymatrixvar(sos,ZSym,n,matrixstr,PVoption)
 %
 % -MP 6/27/2021: updated to dpvar output. Disabled use of symbolic
 % variables. 
+% -DJ, 12/10/2021: Adjusted call to sospolyvar when using 'pvar' option
 
 
 % Original Code
@@ -85,7 +86,7 @@ if nargin > 3 && ~isempty(matrixstr)
                 
                 for i = 1:n(1)
                     for j = i:n(1)
-                        [sos,var] = sospolyvar(sos,ZSym,'pvar');
+                        [sos,var] = sospolyvar(sos,ZSym,[],'pvar'); % DJ, 12/10/1997
                         P(i,j) = var;
                         P(j,i) = var;
                         clear var;
@@ -127,7 +128,7 @@ else
         P = polynomial(zeros(n(1),n(2)));
         for i = 1:n(1)
             for j = 1:n(2)
-                [sos,var] = sospolyvar(sos,ZSym,'pvar');
+                [sos,var] = sospolyvar(sos,ZSym,[],'pvar'); % DJ, 12/10/1997
                 P(i,j) = var;
                 clear var;
             end
