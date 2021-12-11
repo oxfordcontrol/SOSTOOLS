@@ -69,6 +69,8 @@ function [sos,info] = sossolve(sos,options)
 % 09/11/2021 - AT - Created interface to sospsimplify
 % 09/11/2021 - DJ - Added feasibility check after sospsimplify
 % 09/25/2021  - AT - Added default parameters for sospsimlify. 
+% 12/10/2021 - DJ - Added default tolerance for psimplify
+%                   Also allow "options.simplify=0" as one of the options
 
 if (nargin==1)
     %Default options from old sossolve
@@ -88,9 +90,9 @@ end
 
 % AT (09/25/2021) Default options for sospsimplify
 if isfield(options,'simplify') 
-    if (strcmp(options.simplify,'on') | (options.simplify == 1) | strcmp(options.simplify,'turn on') | strcmp(options.simplify,'simplify'))
+    if (strcmp(options.simplify,'on') | (options.simplify == 1) | strcmp(lower(options.simplify),'1') | strcmp(options.simplify,'turn on') | strcmp(options.simplify,'simplify'))
         options.simplify = 1;
-    elseif (strcmp(options.simplify,'off') | strcmp(options.simplify, 0) | strcmp(options.simplify,'turn off'))
+    elseif (strcmp(options.simplify,'off') | (options.simplify == 0) | strcmp(lower(options.simplify),'0') | strcmp(options.simplify,'turn off'))   % DJ, 12/10/2021
         options.simplify = 0;
     else
         warning("options.simplify should be one of the options 'on', 1, 'simplify', 'off', '0'");
@@ -156,7 +158,7 @@ pars = options.params;
 
 % AT - created interface to sospsimplify
 feassosp = 1; %09/25/21 the default value, it is used for sospsimplify
-if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
+if options.simplify==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
 
     fprintf('Running simplification process:\n')
     At_full = At';   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
@@ -170,8 +172,13 @@ if lower(options.simplify)==1 | (strcmp(lower(options.simplify),'on') | strcmp(l
     for i= 1:Nsosvarc
         Zmonom{i} = (1:K.s(i))';
     end
+    if ~isfield(pars,'tol')   % DJ, 12/10/2021
+        ptol = 1e-9;
+    else
+        ptol = pars.tol;
+    end
     %A,b,K -reduced matrices
-    [A,b,K,z,dv2x,Nfv,feassosp,zrem,removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc, pars.tol);
+    [A,b,K,z,dv2x,Nfv,feassosp,zrem,removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc, ptol);
 
     fprintf('Old A size: %d  %d\n', size(At));
     fprintf('New A size: %d  %d\n', size(A'));
