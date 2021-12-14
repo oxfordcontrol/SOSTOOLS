@@ -55,6 +55,7 @@ function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat)
 % 09/11/13 - PJS -- Addition for multipoly objects
 % 6/30/21  - MP -- dpvar modifications
 % 7/12/21 - SS -- fixed typo in line 59, n_vars_dp to n_vars_p (however, this value seems to be unused)
+% 12/14/21 - DJ -- Fixed issues with symengine, missing ']'. Should keep a close eye on these though
 
 
 if isa(symexpr,'dpvar')
@@ -211,12 +212,18 @@ else
     else
         decvarnum = length(find(decvartable == ','))+1;
     end;
-    expr = evalin(symengine,symexpr);
+    %expr = evalin(symengine,symexpr);
+    expr = str2sym(symexpr);    % evalin doesn't allow vertical concatenation, DJ 12/14/21
     %vartable = evalin(symengine,vartable);
     if  length(varmat)==2
         vartable = evalin(symengine,vartable);
     else
-        vartable = evalin(symengine,[vartable(1:end-1),',',varmat(2:end)]);  %JA&GV 07/06/13
+        %vartable = evalin(symengine,[vartable(1:end-1),',',varmat(2:end)]);  %JA&GV 07/06/13
+        % 2 issues with this line: "varmat" has no brackets, and "varmat" is concatenated vertically. Fix:
+        vartable = evalin(symengine,[vartable(1:end-1),',',strrep(varmat(1:end),';',','),']']);  % DJ 12/14/21
+        % Does this produce what we want it to produce?
+        % Should varmat be horizontally concatenated with brackets in the first place?
+        % Can use 'str2sym' if we want vertical concatenation.
     end
     
     decvartable = evalin(symengine,decvartable);
