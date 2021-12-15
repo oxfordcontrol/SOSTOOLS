@@ -47,6 +47,7 @@ function sos = sossetobj(sos,symexpr)
 % 01/07/02 - SP
 % 03/01/02 - SP -- New syntax
 % 8/6/2021 - MP -- dpvar update
+% 12/15/2021 - DJ -- Fixes for dpvar case
 
 if isfield(sos,'symvartable')
 
@@ -87,7 +88,7 @@ elseif isa(symexpr,'dpvar')
         error('The proposed objective must be scalar-valued (no vectors or matrices)')
     end
 
-    if ~all(size(symexpr.varname)==[0 0])
+    if ~(size(symexpr.varname,1)==0)	% DJ, 12/15/21
         error('Your proposed objective contains independent variables')
     end
     if symexpr.C(1,1)~=0
@@ -96,7 +97,7 @@ elseif isa(symexpr,'dpvar')
 
     [~,idxdecvar1,idxdecvar2] = intersect(symexpr.dvarname,sos.decvartable);
     temp=symexpr.C;
-       sos.objective(idxdecvar2)=temp(idxdecvar1+1,1);
+       sos.objective(idxdecvar2,1) = temp(idxdecvar1+1,1);	% DJ, 12/15/21
 
 
 else
