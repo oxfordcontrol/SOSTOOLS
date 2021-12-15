@@ -50,6 +50,7 @@ function sos = sosprogram(vartable,decvartable)
 % 01/07/02 - SP
 % 02/21/02 - SP -- Symbolic polynomial
 % 10/10/02 - SP -- Path checking
+% 12/15/21 - DJ -- Correction for 'sos.var.idx{1}' specification in dpvar case
 
 if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs')
     error('No SDP solvers found.') ;
@@ -169,7 +170,7 @@ else
         else
             sos.decvartable = sort(decvartable.varname);
         end
-        sos.var.idx{1} = length(decvartable)+1;
+	sos.var.idx{1} = length(sos.decvartable)+1;	% DJ, 12/15/21
     else
         sos.decvartable = {};
         sos.var.idx{1} = 1;
