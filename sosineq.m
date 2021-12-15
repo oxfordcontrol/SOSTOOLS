@@ -13,8 +13,8 @@ function sos = sosineq(sos,symexpr,info,info2)
 %
 % SOSP = sosineq(SOSP,EXPR,[a b]) is used to specify the interval 
 % a <= x <= b where f(x) has to be non-negative. Currently, this is 
-% possible only if the sum of squares program is univariate. The lower
-% limit a can be -Inf, and similarly b can be +Inf.
+% possible only if the sum of squares program is univariate, and the input
+% is of type 'sym'. The lower limit a can be -Inf, and similarly b can be +Inf.
 %
 % SOSP = sosineq(SOSP,EXPR,'sparse') will use the fact that a polynomial 
 % is sparse to compute a sum of squares decomposition using an optimally 
@@ -70,6 +70,7 @@ function sos = sosineq(sos,symexpr,info,info2)
 % Change log and developer notes
 
 % 03/20/02 - SP -- Interval info
+% 12/15/21 - DJ -- Interval adjustment for dpvar case
 
 
 
@@ -87,6 +88,18 @@ if isfield(sos,'symvartable')
         end;
         return;
 	end;
+
+elseif nargin > 2 && isnumeric(info) % DJ, 12/15/21
+    if length(sos.vartable) ~= 1
+        error('Not a univariate polynomial.');
+    end
+    for i = 1:size(symexpr,1)
+        xvar = pvar(sos.vartable{1});
+        symexpr(i) = polypreprocess(symexpr(i),xvar,info);
+        sos = sosconstr(sos,'ineq',symexpr(i));
+        sos.expr.type{sos.expr.num} = 'posint';
+    end
+    return;
 
 end;
     
@@ -133,3 +146,27 @@ else
     newvar = (info(2)-info(1))/2*(1-var)/(1+var) + (info(2)+info(1))/2;
     newsymexpr = subs(symexpr,var,newvar)*(1+var).^maxdeg;
 end;
+
+% ============================================================
+function pnewsymexpr = polypreprocess(psymexpr,var,info)
+ 
+% Get the maximum degree of the independent variable
+maxdeg = 0;
+dummy = diff(psymexpr,var);
+while any(dummy.C ~= 0)
+    maxdeg = maxdeg+1;
+    dummy = diff(dummy,var);
+end
+
+% Substitute var
+if info(1)==-Inf && info(2)==Inf
+    pnewsymexpr = psymexpr;
+elseif info(2)==Inf
+    newvar = var+info(1);
+    pnewsymexpr = subs(psymexpr,var,newvar);
+elseif info(1)==-Inf
+    newvar = -var+info(2);
+    pnewsymexpr = subs(psymexpr,var,newvar);
+else
+    error('Imposing inequality on finite interval is not supported for pvar/dpvar implementation')
+end
