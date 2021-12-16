@@ -1,11 +1,12 @@
-function varargout = length(A)
-% varargout = length(A) returns the number of rows of dpvar object A
+function [lngth,indx] = length(A)
+% varargout = length(A) returns the maximal array dimension of dpvar object A
 % 
 % INPUTS:
 % A: a dpvar class object
 % 
 % OUTPUTS:
-% varargout{1}: number of rows of A, scalar
+% lgnth: scalar, maximal array dimension of A
+% indx:  dimension along which A is of size lngth
 % 
 % NOTES:
 % For support, contact M. Peet, Arizona State University at mpeet@asu.edu,
@@ -33,10 +34,10 @@ function varargout = length(A)
 % authorship, and a brief description of modifications
 %
 % Initial coding DJ, MP, SS - 06/18/2021
+% 12/15/21 - DJ -- Adjusted to return maximal array dimension
 
 if nargin ==1      
-    out = A.matdim(1);   
-    varargout{1}=out;
+    [lngth,indx] = max(A.matdim);   
 elseif nargin>= 2
     error('length() function allows only a single input dpvar object.');
 end  
