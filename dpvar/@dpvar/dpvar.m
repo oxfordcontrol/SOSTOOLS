@@ -64,6 +64,7 @@ classdef (InferiorClasses={?polynomial})dpvar
     % authorship, and a brief description of modifications
     %
     % Initial coding DJ, MP, SS - 07/12/2021
+    % 12/15/21 - DJ -- Added single input single output case (y=dpvar('x'))
     
     
     
@@ -94,8 +95,15 @@ classdef (InferiorClasses={?polynomial})dpvar
                         assignin('caller', varargin{i}, dpvar(Cf,dmat,vname,dvname,matdim));
                         clear obj;
                     end
+                elseif nargin==1 && nargout==1                        
+                    Cf = sparse([0;1]);
+                    dmat = zeros(1,0);
+                    vname = {};
+                    dvname = {varargin{1}};
+                    matdim = [1,1];
+                    obj = dpvar(Cf,dmat,vname,dvname,matdim);
                 else
-                    error('For cell char inputs, number of outputs should be zero');
+                    error('For cell char inputs, number of outputs should be at most 1');
                 end
             elseif nargin==1 % single input is either dpvar, double or polynomial
                 if isa(varargin{1},'dpvar')
