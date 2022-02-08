@@ -36,6 +36,7 @@ function display(var)
 % authorship, and a brief description of modifications
 %
 % Initial coding DJ, MP, SS - 07/30/2021
+% Replace "sum(.,'all')" with "sum(sum(.))" for pre-R2018b, DJ - 02/07/2022
 
 
 % tol indicates the max number of command-line rows that the output is
@@ -114,7 +115,7 @@ elseif var.chkval
         else
             % The object is (very) big --> check if the user wishes to continue
             msg = ['Warning: Your object will require a large number of rows'...
-                   ' (',num2str(sum(szP(1),'all')),') to display in your command window.'];
+                   ' (',num2str(sum(szP(1))),') to display in your command window.'];
             fprintf(1,[msg,'\n'])
             userinp = input('Do you wish to continue with display? Y or N?\n','s');
             userinp = strrep(userinp,' ','');
@@ -126,13 +127,13 @@ elseif var.chkval
     else
         % Each element of the object gets a separate row
         nrows = ceil(nchar./maxchar);
-        if sum(nrows+2,'all')<=tol
+        if sum(sum(nrows+2))<=tol
             % The object is not too big --> we can savely display
             poly_display_elems(varname,Pchar,szP,ws);
         else
             % The object is (very) big --> check if the user wishes to continue
             msg = ['Warning: Your object will require a large number of rows'...
-                   ' (estimated ',num2str(sum(nrows+2,'all')),') to display in your command window.'];
+                   ' (estimated ',num2str(sum(sum(nrows+2))),') to display in your command window.'];
             fprintf(1,[msg,'\n'])
             userinp = input('Do you wish to continue with display? Y or N?\n','s');
             userinp = strrep(userinp,' ','');
