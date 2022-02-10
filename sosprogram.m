@@ -51,8 +51,9 @@ function sos = sosprogram(vartable,decvartable)
 % 02/21/02 - SP -- Symbolic polynomial
 % 10/10/02 - SP -- Path checking
 % 12/15/21 - DJ -- Correction for 'sos.var.idx{1}' specification in dpvar case
+% 02/09/22 - DJ -- Add check for mosek solver
 
-if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs')
+if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs') & ~exist('mosekopt')
     error('No SDP solvers found.') ;
 end;
 
