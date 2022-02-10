@@ -47,7 +47,7 @@ function sos = sosprogram(vartable,decvartable)
 % 02/21/02 - SP -- Symbolic polynomial
 % 10/10/02 - SP -- Path checking 
 
-if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs')
+if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs') & ~exist('mosekopt')
     error('No SDP solvers found.') ;
 end;
 
