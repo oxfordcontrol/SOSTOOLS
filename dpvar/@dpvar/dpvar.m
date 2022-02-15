@@ -133,7 +133,7 @@ classdef (InferiorClasses={?polynomial})dpvar
                         matdim = [nd1,nd2];
                         obj = dpvar(Cf,dmat,vname,dvname,matdim);
                     else
-                        error('For cellstr input, number of outputs should be at most 1')
+                        error('For cellstr input, number of outputs should be 1')
                     end
                 else
                     error(['For single input, argument must be a dpvar, '...
