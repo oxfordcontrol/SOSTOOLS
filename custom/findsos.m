@@ -66,6 +66,7 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 
 % 12/27/01 - SP
 % 03/27/02 - SP
+% 02/14/21 - DJ -- Convert Q to full before taking sqrtm(Q)  in computing L
 
 
 if nargin == 2
@@ -239,7 +240,8 @@ else
 	end;
 	
 	prog = sosprogram(vars);
-	prog = sosineq(prog,P);
+	%prog = sosineq(prog,P);
+    prog = sosineq(prog,dpvar(P));
 	[prog,info] = sossolve(prog,options); %AP edit to pass solver.
 	
 	if 'solver' == 'SDPNAL'
@@ -314,7 +316,7 @@ else
 		
 	end;
 		
-	L = real(sqrtm(double(Q))); %AP edit for first order solver accuracy
+	L = real(sqrtm(full(double(Q)))); %AP edit for first order solver accuracy
 	decomp   = L*(kron(eye(dimp(1)),Z));
 	
 end;
