@@ -62,6 +62,7 @@ function sos = sosconstr(sos,Type,symexpr)
 % 03/01/02 - SP -- New syntax
 % 04/06/03 - PJS -- Handle poly objects w/out for-loops
 % 7/29/21  - MP -- Added support for dpvar expression types.
+% 02/14/22 - DJ -- Add "Type" to getequation input for dpvar case.
 
 sos.expr.num = sos.expr.num+1;
 expr = sos.expr.num;
@@ -69,6 +70,7 @@ sos.expr.type{expr} = Type;
 
 
 if isfield(sos,'symvartable')
+    
     charvartable = converttochar([sos.vartable]);
     isvectorvar = size(symexpr,2)==1;
     for i = 1:size(symexpr,1)
@@ -99,9 +101,9 @@ else
 %     
 
 
-if isa(symexpr,'dpvar')
+if isa(symexpr,'dpvar')    
         [sos.expr.At{expr},sos.expr.b{expr},sos.expr.Z{expr}] = ...
-            getequation(symexpr,sos.vartable,sos.decvartable,sos.varmat.vartable);
+            getequation(symexpr,sos.vartable,sos.decvartable,sos.varmat.vartable,Type);
 elseif isa(symexpr,'polynomial')
     
         [sos.expr.At{expr},sos.expr.b{expr},sos.expr.Z{expr}] = ...
@@ -110,8 +112,4 @@ else
     error('symexpr type not recognized')
 end
 
-    
 end
-
-
-
