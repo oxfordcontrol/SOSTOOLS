@@ -1,15 +1,17 @@
-function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat)
+function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat,Type)
 %function [At,b,Z] = getequation(symexpr,vartable,decvartable,decvartablename)
 %
 % GETEQUATION --- Convert a symbolic expression to At, b, and Z
-%         used in an SOS program.
-%
+%         used in an SOS program. In this format, 
+%  symexpr= Im kron [1][ C ]In kron Z
+%                   [x][   ]                                                                
+%         = (b+x^TAt^T) Imn kron Z
 % Inputs:
 % symexpr: This expression may be in dpvar, pvar, or symbolic format. 
 % It may be matrix or scalar valued. At present, matrix-valued inputs should 
 % only be used with equality constraints
 % vartable: List of the independent variables in the sosprogram
-
+% 
 
 % This file is part of SOSTOOLS - Sum of Squares Toolbox ver 4.00.
 %
@@ -55,49 +57,60 @@ function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat)
 % 09/11/13 - PJS -- Addition for multipoly objects
 % 6/30/21  - MP -- dpvar modifications
 % 7/12/21 - SS -- fixed typo in line 59, n_vars_dp to n_vars_p (however, this value seems to be unused)
-% 12/14/21 - DJ -- Fixed issues with symengine, missing ']'. Should keep a close eye on these though
+% 12/14/21 - DJ -- Fixed issues with symengine, missing ']', though more issues may be expected
+% 02/14/21 - DJ -- Adjustment for dpvar Mineq case
 
 
-if isa(symexpr,'dpvar')
+if isa(symexpr,'dpvar')  
+    % % Extract necessary values
     vartable = [vartable; varmat];
     n_dvars_prog = numel(decvartable);
     n_vars_prog = numel(vartable);
     cvartable_prog = char(vartable);
     cdvartable_prog = char(decvartable);
-    dvarname=symexpr.dvarname;
-    varname=symexpr.varname;
+    dvarname = symexpr.dvarname;
+    varname = symexpr.varname;
     %    cdvarname=char(symexpr.dvarname);
     %    cvarname=char(symexpr.varname);
-    degmat=symexpr.degmat;
-    C=symexpr.C;
-    m= size(symexpr,1);
-    n= size(symexpr,2);
-    [n_mons,n_vars_p] = size(degmat);
+    degmat = symexpr.degmat;
+    C = symexpr.C;
+    m = size(symexpr,1);
+    n = size(symexpr,2);
+    n_mons = size(degmat,1);
     n_dvars_dp = length(dvarname);
     
-    %    if all([m n]==[1 1])
-    % scalar case
-    %    else
-    % matrix case
-    C_cell=mat2cell(C,(n_dvars_dp+1)*ones(m,1),n_mons*ones(n,1));
-    C_reshape=cell2mat(reshape(C_cell,1,m*n));
-    % eliminate empty columns
-    col_nums = any(C_reshape,1); %logical vector of non-zero columns
-    n_cons=sum(col_nums);
-    C_reshape2=C_reshape(:,col_nums);
     
-    % delete the monomials corresponding to eliminated constraints
-    degmat_big=repmat(degmat,n*m,1);
-    degmat_big2=degmat_big(col_nums,:); 
+    % % Reshape coefficients as [C11,C21,...,Cm1,C12,...,Cmn]
+    C_cell = mat2cell(C,(n_dvars_dp+1)*ones(m,1),n_mons*ones(n,1));
+    C_reshape = cell2mat(reshape(C_cell,1,m*n));
+    
+    if nargin>=5 && strcmp(Type,'ineq')
+        % In Mineq case, retain all columns, and store the unique monomials
+        C_reshape2 = C_reshape;
+        n_cons = size(C_reshape2,2);
+        degmat_big2 = degmat;
+        n_mons = size(degmat_big2,1);
+        
+    else
+        % Otherwise, discard empty columns, and store only useful monomials
+        col_nums = any(C_reshape,1);            % logical vector of non-zero columns
+        n_cons = sum(col_nums);
+        C_reshape2 = C_reshape(:,col_nums);
+    
+        % Delete the monomials corresponding to eliminated constraints
+        degmat_big = repmat(degmat,n*m,1);
+        degmat_big2 = degmat_big(col_nums,:); % remove unused monomials
+        n_mons = size(degmat_big2,1);
+    end
     
     % synchronize varnames in Z to SOS program cvartable (same as in polynomial case)
-    
     % Reorder the monomials matrix with variables in the order
     % listed in cvartable and sorted monomials
     %    Z = zeros(n_mons,n_vars_dp);
     %     [~,idx]=ismember(varname,cvartable_prog);
+    
     [~,idx]=ismember(varname,cvartable_prog); % beware the case where varname does not appear in vartable!
-    if ~isempty(find(~idx))
+    if ~isempty(find(~idx,1))
         error('the given expression has an independent variable which does not appear in the sosprogram')
     end
 %    Z(:,idx) = full(degmat_big2); % Why full?
@@ -105,30 +118,29 @@ if isa(symexpr,'dpvar')
 %        Z = sortNoRepeat([],Z); % shouldn't sorting Z but not At and b defeat
     %    the purpose? not sure what the purpose is, actually.
     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % separate At and b
 %     const_rows = 1:n_dvars_dp+1:size(C_reshape2,1);
     %[C_reshape3]=(unique(C_reshape2,'rows'));
     % b_temp=C_reshape3(:,1);
     % At_temp=C_reshape3(:,2:end)';%???
-    %degmat_big3=degmat_big2(col_nums,:); 
+    %degmat_big3=degmat_big2(col_nums,:);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %    b=b_temp;
-    b_temp=C_reshape2(1,:);
-    At_temp=C_reshape2(2:end,:);%???
-    b=b_temp';
+    b_temp = C_reshape2(1,:);
+    At_temp = C_reshape2(2:end,:);%???
+    b = b_temp';
 
-    Z = sparse(n_cons,n_vars_prog);
+    Z = sparse(n_mons,n_vars_prog);
     Z(:,idx) = degmat_big2;
 
     % synchronize dpvars to SOS program decvartable
     [~,idx]=ismember(dvarname,cdvartable_prog); % also slow??
-    if ~isempty(find(~idx))
+    if ~isempty(find(~idx,1))
         error('the given expression has a decision variable which does not appear in the sosprogram')
     end
-    %At=sparse(n_dvars_prog,n_cons,nnz(At_temp)); 
-    At=sparse([],[],[],n_dvars_prog,n_cons,nnz(At_temp)); %<-- I think this is what we want?
-%    At(idx,:)=At_temp;
+    At=sparse([],[],[],n_dvars_prog,n_cons,nnz(At_temp));
     At(idx,:)=-At_temp; % main time sink?
     
 elseif isa(symexpr,'polynomial')
