@@ -63,6 +63,7 @@ function sos = sosconstr(sos,Type,symexpr)
 % 04/06/03 - PJS -- Handle poly objects w/out for-loops
 % 7/29/21  - MP -- Added support for dpvar expression types.
 % 02/14/22 - DJ -- Add "Type" to getequation input for dpvar case.
+% 02/21/22 - DJ -- Add check to convert "double" to appropraite data class.
 
 sos.expr.num = sos.expr.num+1;
 expr = sos.expr.num;
@@ -70,6 +71,10 @@ sos.expr.type{expr} = Type;
 
 
 if isfield(sos,'symvartable')
+    
+    if isdouble(symexpr)    % DJ, 02/21/22
+        symexpr = sym(symexpr);
+    end
     
     charvartable = converttochar([sos.vartable]);
     isvectorvar = size(symexpr,2)==1;
@@ -100,14 +105,23 @@ if isfield(sos,'symvartable')
 else
 %     
 
-
+if isdouble(symexpr)    % DJ, 02/21/2022
+    symexpr = dpvar(symexpr);
+elseif isa(symexpr,'polynomial')
+    % Convert polynomial to dpvar to avoid issue in sossolve
+    symexpr = poly2dpvar(symexpr,prog.decvartable);
+    % Not efficient, and not desirable if people want reversionary
+    % implementation...
+end
 if isa(symexpr,'dpvar')    
+    symexpr = compress(combine(symexpr,'extended'));    % Get a minimal representation
         [sos.expr.At{expr},sos.expr.b{expr},sos.expr.Z{expr}] = ...
             getequation(symexpr,sos.vartable,sos.decvartable,sos.varmat.vartable,Type);
-elseif isa(symexpr,'polynomial')
-    
-        [sos.expr.At{expr},sos.expr.b{expr},sos.expr.Z{expr}] = ...
-            getequation(symexpr,sos.vartable,sos.decvartable,sos.varmat.vartable);
+        
+% elseif isa(symexpr,'polynomial')
+%         
+%         [sos.expr.At{expr},sos.expr.b{expr},sos.expr.Z{expr}] = ...
+%             getequation(symexpr,sos.vartable,sos.decvartable,sos.varmat.vartable);
 else
     error('symexpr type not recognized')
 end
