@@ -71,7 +71,8 @@ function [sos,info] = sossolve(sos,options)
 % 09/25/2021 - AT - Added default parameters for sospsimlify. 
 % 12/10/2021 - DJ - Added default tolerance for psimplify
 %                   Also allow "options.simplify=0" as one of the options
-% 02/14/2021 - DJ - Initial dpvar version of addextrasosvar.
+% 02/14/2022 - DJ - Initial dpvar version of addextrasosvar.
+% 02/25/2022 - DJ - Exit when monomials are empty in syms addextrasosvar
 
 if (nargin==1)
     %Default options from old sossolve
@@ -785,7 +786,14 @@ else
         Zdummy2 = bsxfun(@minus,Z,mindegree); % each monomial minus mindegree monomial
         [I,~] = find([Zdummy1 Zdummy2]<0); % rows which contain negative terms
         IND = setdiff(1:size(Z,1),I,'stable'); % rows not listed in I
-        Z = Z(IND,:); % discard all monomials rows listed in I
+        if isempty(IND) % 02/21/2022 - DJ: Add check in case problem is infeasible
+            fprintf(['\n Warning: Inequality constraint ',num2str(i),...
+                ' in your sos program structure corresponds to a polynomial that is not sum-of-squares.\n'])
+            feasextrasos = 0;   % Indicate the problem is not feasible.
+            return
+        else
+            Z = Z(IND,:);                       % discard all monomials rows listed in I
+        end
         % Z is now the monomial vector in the quadratic representation Z^T Q Z
         % as opposed to expr.Z which is all the monomials in the expression
         
