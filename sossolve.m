@@ -58,19 +58,21 @@ function [sos,info] = sossolve(sos,options)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
 
-% 12/25/01 - SP
-% 01/05/02 - SP - primal
-% 01/07/02 - SP - objective
-% aug/13   - JA,GV - CDSP,SDPNAL,SDPA solvers and SOS matrix decomposition
-% 06/01/16 - JA - added interface to frlib facial reduction package by
+% 12/25/01   - SP
+% 01/05/02   - SP - primal
+% 01/07/02   - SP - objective
+% aug/13     - JA,GV - CDSP,SDPNAL,SDPA solvers and SOS matrix decomposition
+% 06/01/16   - JA - added interface to frlib facial reduction package by
 %                 F Permenter and PP.
-% 01/04/18  - AP - Added CDCS and SDPNALplus
-% 6/27/2020 - MP, SS - Added mosek as an optional solver
+% 01/04/18   - AP - Added CDCS and SDPNALplus
+% 6/27/2020  - MP, SS - Added mosek as an optional solver
 % 09/11/2021 - AT - Created interface to sospsimplify
 % 09/11/2021 - DJ - Added feasibility check after sospsimplify
-% 09/25/2021  - AT - Added default parameters for sospsimlify. 
+% 09/25/2021 - AT - Added default parameters for sospsimlify. 
 % 12/10/2021 - DJ - Added default tolerance for psimplify
 %                   Also allow "options.simplify=0" as one of the options
+% 02/14/2022 - DJ - Initial dpvar version of addextrasosvar.
+% 02/25/2022 - DJ - Exit when monomials are empty in syms addextrasosvar
 
 if (nargin==1)
     %Default options from old sossolve
@@ -120,9 +122,7 @@ sos.extravar.idx{1} = sos.var.idx{sos.var.num+1};
 % SOS variables
 I = [find(strcmp(sos.expr.type,'ineq')), find(strcmp(sos.expr.type,'sparse')), find(strcmp(sos.expr.type,'sparsemultipartite'))];
 if ~isempty(I)
-    tic
-    sos = addextrasosvar(sos,I);
-    toc
+    [sos,feasextrasos] = addextrasosvar(sos,I);
 end;
 % SOS variables type II (restricted on interval)
 I = find(strcmp(sos.expr.type,'posint'));
@@ -213,10 +213,11 @@ else
 end
 
 % AT - 9/28/2021
-if feassosp == 0 % if the sospsimplify returns infeasible solution. The default value is 1 
+if feassosp==0 || feasextrasos==0 % if the sospsimplify or addextrasosvar return infeasible solution.
     % If the problem is clearly infeasible, sedumi can return error
-    % Return no solution if the problem is clearly infeasible from sospsimplify. 
-    fprintf(2,'\n Warning: Primal program infeasible, no solution produced.\n')
+    % Return no solution if the problem is clearly infeasible from
+    % sospsimplify or addextrasosvar.
+    fprintf(2,'\n Warning: Primal program infeasible, no solution produced.\n\n')
     info.iter = 0;
     info.feasratio = -1;
     info.pinf = 1;
@@ -595,82 +596,72 @@ sos.solinfo.decvar.dual = sos.solinfo.RRy(1:sos.var.idx{1}-1);
 
 
 % ====================================================================================
-function sos = addextrasosvar(sos,I)
+function [sos,feasextrasos] = addextrasosvar(sos,I)
 % Adding slack SOS variables to inequalities
+feasextrasos = 1;   % Assume problem is feasible
 
+if ~isfield(sos,'symvartable')
+    % Code for dpvar case (how to distinguish pvar and dpvar case?)
+    for i = I
+    % % % Enforce inequality constraint F(x)=S(x) where S(x) is PSD for all x
+        
+        % % Extract information about the LHS function F(x)
+        Zin = sos.expr.Z{i};
+        [nmons,nvars] = size(Zin);
+        ncons = size(sos.expr.b{i},1);
+        if mod(ncons,nmons)~=0
+            error('Error in the implementation, size of b should be divisible by the number of monomials')
+        else
+            Fdim = sqrt(ncons/nmons);
+        end
+        if Fdim~=round(Fdim)
+            error('Constraints of type ''ineq'' can only be imposed on square matrices')
+        end
+        
+        
+        % % Build monomial vector for RHS function S(x)
+        % Initialize as all monomials between min/2 and max/2
+        maxdeg = full(max(sum(Zin,2)));     % maximum total degree of the monomials
+        mindeg = full(min(sum(Zin,2)));     % minimum total degree of the monomials (for matrixvars, this will be at least 2)
+        Z = monomials(nvars,(floor(mindeg/2):ceil(maxdeg/2))); 
+        
+        % Then, discard unnecessary monomials
+        maxdegree = sparse(max(Zin,[],1)/2);    % row of max degrees in each variable
+        mindegree = sparse(min(Zin,[],1)/2);    % row of min degrees in each variable
+        Zdummy1 = bsxfun(@minus,maxdegree,Z);   % maxdegree monomial minus each monomial
+        Zdummy2 = bsxfun(@minus,Z,mindegree);   % each monomial minus mindegree monomial
+        [I,~] = find([Zdummy1 Zdummy2]<0);      % rows which contain negative terms
+        IND = setdiff(1:size(Z,1),I,'stable');  % rows not listed in I
+        if isempty(IND)
+            fprintf(['\n Warning: Inequality constraint ',num2str(i),...
+                ' in your sos program structure corresponds to a polynomial that is not sum-of-squares.\n'])
+            feasextrasos = 0;   % Indicate the problem is not feasible.
+            return
+        else
+            Z = Z(IND,:);                       % discard all monomials rows listed in I
+        end
+        
+        % If requested, further optimize Z
+        if strcmp(sos.expr.type{i},'sparse')
+            Z2 = sos.expr.Z{i}/2;
+            Z = inconvhull(full(Z),full(Z2));
+            Z = makesparse(Z);
+            %disp(['Optimized again : ',num2str(size(Z,1))]);
+        end
+        % and sparse_multipartite, also just copied from sym version:
+        if strcmp(sos.expr.type{i},'sparsemultipartite')
+            Z2 = sos.expr.Z{i}/2;           % lots of fractional degrees
+            info2 = sos.expr.multipart{i};  % the vectors of independent variables
+            sizeinfo2m = length(info2);
+            vecindex = [];
+            for indm = 1:sizeinfo2m % for each set of independent variables (first true ind, then matrix)
+                sizeinfo2n(indm) = length(info2{indm}); % number of variables in cell
+                for indn = 1:sizeinfo2n(indm) % scroll through the matrix variables,
 
-for i = I
-    numstates = size(sos.expr.Z{i},2);%GV&JA 6/12/2013 % number of ind variables
-    % Creating extra variables
-    maxdeg = full(max(sum(sos.expr.Z{i},2))); % maximum total degree of the monomials
-    mindeg = full(min(sum(sos.expr.Z{i},2))); % minimum total degree of the monomials (for matrixvars, this will be at least 2)
-    Z = monomials(numstates,[floor(mindeg/2):ceil(maxdeg/2)]); % start with all monomials between min/2 and max/2
-    %disp(['Original : ',num2str(size(Z,1))]);
-    
-    % Discarding unnecessary monomials
-    maxdegree = sparse(max(sos.expr.Z{i},[],1)/2); % row of max degrees in each variable
-    mindegree = sparse(min(sos.expr.Z{i},[],1)/2); % row of max degrees in each variable
-    
-    Zdummy1 = bsxfun(@minus,maxdegree,Z); % maxdegree monomial minus each monomial
-    Zdummy2 = bsxfun(@minus,Z,mindegree); % each monomial minus mindegree monomial
-    [I,~] = find([Zdummy1 Zdummy2]<0); % rows which contain negative terms
-    IND = setdiff(1:size(Z,1),I,'stable'); % rows not listed in I
-    Z = Z(IND,:); % discard all monomials rows listed in I
-    
-    %GV 27/06/2014 - replaced the code below by the above, where the indexes
-    %are used to update the matrix of monomials. Matrices maxdegree and
-    %mindegree were set to be sparse.
-    
-    %     Iout = [];indI = 0;%GV 27/06/2014 checking correctness
-    %     Z = monomials(numstates,[floor(mindeg/2):ceil(maxdeg/2)]);%GV 27/06/2014 checking correctness
-    %     j = 1;
-    %     while (j <= size(Z,1))
-    %         indI = indI+1;%GV 27/06/2014 checking correctness
-    %         Zdummy1 = maxdegree-Z(j,:);
-    %         Zdummy2 = Z(j,:)-mindegree;
-    %         idx = find([Zdummy1, Zdummy2]<0);
-    %         if ~isempty(idx)
-    %             Iout = [Iout; indI];%GV 27/06/2014 checking correctness
-    %             Z = [Z(1:j-1,:); Z(j+1:end,:)];
-    %         else
-    %             j = j+1;
-    %         end;
-    %     end;
-    %     sparse(unique(I,'legacy')-Iout)%GV 27/06/2014 checking correctness
-    
-    
-    %disp(['Optimized : ',num2str(size(Z,1))]);
-    
-    % Convex hull algorithm
-    if strcmp(sos.expr.type{i},'sparse')
-        Z2 = sos.expr.Z{i}/2;
-        Z = inconvhull(full(Z),full(Z2));
-        Z = makesparse(Z);
-        %disp(['Optimized again : ',num2str(size(Z,1))]);
-    end;
-    
-    if strcmp(sos.expr.type{i},'sparsemultipartite')
-        Z2 = sos.expr.Z{i}/2; % lots of fractional degrees
-        info2 = sos.expr.multipart{i};%the vectors of independent variables
-        sizeinfo2m = length(info2);
-        vecindex = [];
-        for indm = 1:sizeinfo2m%for each set of independent variables (first true ind, then matrix)
-            sizeinfo2n(indm) = length(info2{indm}); % number of variables in cell
-            for indn = 1:sizeinfo2n(indm) %scroll through the matrix variables,
-                
-                if isfield(sos,'symvartable')%
-                    varcheckindex = find(info2{indm}(indn)==sos.symvartable);
-                    if ~isempty(varcheckindex)
-                        vecindex{indm}(indn) = varcheckindex;
-                    else
-                        vecindex{indm}(indn) = length(info2{1})+find(info2{indm}(indn)==sos.varmat.symvartable);%GV&JA 6/12/2013
-                    end
-                    
-                else
                     % PJS 9/12/13: Update code to handle polynomial objects
                     var = info2{indm}(indn);
                     cvartable = char(sos.varmat.vartable);
-                    
+
                     if ispvar(var)
                         % Convert to string representation
                         var = var.varname;
@@ -681,105 +672,299 @@ for i = I
                     else
                         vecindex{indm}(indn) = length(info2{1}) + find(strcmp(var,cvartable));
                     end
-                    
+                        
                     % PJS 9/12/13: Original Code to handle polynomial objects
                     %vecindex{indm}(indn) = find(strcmp(info2{indm}(indn).varname,sos.vartable));
-                end;
-            end
-        end
-        Z = sparsemultipart(full(Z),full(Z2),vecindex);
-        Z = makesparse(Z);
-    end;
-    
-    
-    
-    dimp = size(sos.expr.b{i},2);
-    
-    % Adding slack variables
-    sos.extravar.num = sos.extravar.num + 1;
-    var = sos.extravar.num;
-    sos.extravar.Z{var} = makesparse(Z);
-    [T,ZZ] = getconstraint(Z);
-    sos.extravar.ZZ{var} = ZZ;
-    sos.extravar.T{var} = T';
-    %sos.extravar.idx{var+1} = sos.extravar.idx{var}+size(Z,1)^2;%GVcomment the next slack variable starts in the column i+dim(Z)^2 - the elements of the vectorized square matrix
-    
-    
-    sos.extravar.idx{var+1} = sos.extravar.idx{var}+(size(Z,1)*dimp)^2;
-    for j = 1:sos.expr.num
-        sos.expr.At{j} = [sos.expr.At{j}; ...
-            sparse(size(sos.extravar.T{var},1)*dimp^2,size(sos.expr.At{j},2))];
-    end
-    
-    ZZ = flipud(ZZ);
-    T = flipud(T);
-    
-    Zcheck = sos.expr.Z{i};
-    %this is for the matrix case
-    
-    
-    
-    
-    if dimp==1
-        % JFS 6/3/2003: Ensure correct size:
-        pc.Z = sos.extravar.ZZ{var};
-        pc.F = -speye(size(pc.Z,1));
-        [R1,R2,newZ] = findcommonZ(sos.expr.Z{i},pc.Z);
-        % JFS 6/3/2003: Ensure correct size:
-        
-        if isempty(sos.expr.At{i})
-            sos.expr.At{i} = sparse(size(sos.expr.At{i},1),size(R1,1));
-        end
-        %------------
-        sos.expr.At{i} = sos.expr.At{i}*R1;
-        lidx = sos.extravar.idx{var};
-        uidx = sos.extravar.idx{var+1}-1;
-        sos.expr.At{i}(lidx:uidx,:) = sos.expr.At{i}(lidx:uidx,:) - sos.extravar.T{var}*pc.F*R2;
-        sos.expr.b{i} = R1'*sos.expr.b{i};
-        sos.expr.Z{i} = newZ;
-        
-    else
-        
-        [R1,R2,Znew] = findcommonZ(Zcheck,ZZ);
-        
-        R1 = fliplr(R1);
-        R2 = fliplr(R2);
-        Znew = flipud(Znew);
-        
-        R1sum = sum(R1,1);
-        T = R2'*T;
-        
-        ii = 1;
-        sig_ZZ = size(ZZ,1);
-        sig_Z = size(Z,1);
-        sig_Znew = size(Znew,1);
-        
-        Tf = sparse(dimp^2*sig_Znew,(dimp*sig_Z)^2);
-        Sv = sparse(sig_Znew*dimp^2,1);
-        for j = 1:sig_Znew
-            Mt0 = sparse(dimp,dimp*sig_Z^2);
-            for k = 1:sig_Z
-                Mt0(:, (dimp*sig_Z)*(k-1)+1:(dimp*sig_Z)*k) = kron(eye(dimp),T(j,(sig_Z)*(k-1)+1:(sig_Z)*k));
-            end
-            Tf((j-1)*dimp^2+1:j*dimp^2,:) = kron(eye(dimp),Mt0);
-            
-            if R1sum(j)==1
-                Sv((j-1)*dimp^2+1:j*dimp^2)= reshape(sos.expr.b{i}( dimp*(ii-1)+1:dimp*ii,:)',dimp^2,1);
-                if ii<size(Zcheck,1)
-                    ii = ii+1;
+
                 end
-            else
-                sos.expr.At{i} = [ sos.expr.At{i}(:,1:(j-1)*dimp^2) sparse(size(sos.expr.At{i},1),dimp^2) sos.expr.At{i}(:,(j-1)*dimp^2+1:end)];
+            end
+            Zmp = sparsemultipart(full(Z),full(Z2),vecindex);
+            Zmp = makesparse(Zmp);
+            if ~isempty(Zmp)        % Fix in case result is empty, but might not be appropriate...
+                Z = Zmp;
             end
         end
+        nmons_Z = size(Z,1);
         
-        lidx = sos.extravar.idx{var};
-        uidx = sos.extravar.idx{var+1}-1;
-        sos.expr.At{i}(lidx:uidx,:) =  Tf';
-        sos.expr.b{i} =  Sv;
         
+        % % Add variables associated to RHS S(x) to sos program
+        % Add the monomials
+        sos.extravar.num = sos.extravar.num + 1;
+        var = sos.extravar.num;
+        sos.extravar.Z{var} = makesparse(Z);
+        [T,ZZ] = getconstraint(Z);      % Z'QZ = vec(Q)'T'ZZ 
+        sos.extravar.ZZ{var} = ZZ;
+        sos.extravar.T{var} = T';
+        
+        % Add the decision variables
+        sos.extravar.idx{var+1} = sos.extravar.idx{var}+(nmons_Z*Fdim)^2; % new decision variables associated with this constraint
+        for j = 1:sos.expr.num
+            sos.expr.At{j} = [sos.expr.At{j}; sparse(size(T,2)*Fdim^2,size(sos.expr.At{j},2))];
+            % we're not exploiting symmetry, but I'm not sure that would be possible...
+        end
+        
+        
+        % % Finally, implement the actual constraint F(x) = S(x)
+        if Fdim==1
+            % If F(x) is scalar, S(x) = Z(x)'*C2*Z(x) = c2'*T'*ZZ(x), thus:
+            % F(x)-S(x) = (b'-c1'*At)*Zin(x) - c2'*T'*ZZ(x) = 0
+            
+            [R1,R2,Znew] = findcommonZ(Zin,ZZ); 
+            % F(x)-S(x) = (b'-c1'*At)*R1*Znew - c2'*T'*R2*Znew
+            %           = ([b*R1;0]' - [c1;c2]'*[At*R1;T'*R2]) * Znew
+        
+            if isempty(sos.expr.At{i})  % In case Zin is empty? Will this happen?
+                sos.expr.At{i} = sparse(size(sos.expr.At{i},1),size(R1,1));
+            end
+            sos.expr.Z{i} = Znew;               % Update the monomials
+            sos.expr.b{i} = R1'*sos.expr.b{i};  % Adjust b to match new monomials
+            sos.expr.At{i} = sos.expr.At{i}*R1; % Adjust At to match new monomials
+            
+            lidx = sos.extravar.idx{var};
+            uidx = sos.extravar.idx{var+1}-1;
+            sos.expr.At{i}(lidx:uidx,:) = T'*R2; % Add contribution of S(x)
+            
+        else
+            % If F(x) is not scalar, S(x) = sum_ij Cij*[Z(x)]_i*[Z(x)]_j,
+            % where Cij is of size Fdim^2.
+            
+            [R1,R2,Znew] = findcommonZ(Zin,ZZ);
+            sos.expr.Z{i} = Znew;               % Update the monomials  
+            
+            nmons_new = size(Znew,1);
+            Zindx = T'*R2*(1:nmons_new)';   % Z'QZ = vec(Q)'(T'*R2)'Znew = vec(Q)^T*Znew(Zindx)
+            
+            % Initialize new At and b
+            Atnew = sparse([],[],[],size(sos.expr.At{i},1),Fdim^2*size(Znew,1),nnz(sos.expr.At{i})+(nmons_Z*Fdim)^2);
+            bnew = sparse([],[],[],Fdim^2*size(Znew,1),1,nnz(sos.expr.b{i}));
+            
+            for j=1:Fdim^2
+            % For each of the matrix elements j = sub2ind(k,l), do:
+                indx_old = (j-1)*nmons+1:j*nmons;           % Old columns associated to element j
+                indx_new = (j-1)*nmons_new+1:j*nmons_new;   % New columns associated to element j
+                
+                bnew(indx_new) = R1'*sos.expr.b{i}(indx_old);       % Adjust b to match new monomials
+                Atnew(:,indx_new) = sos.expr.At{i}(:,indx_old)*R1;  % Adjust At to match new monomials
+                
+                % What coefficients of S are associated to element j?
+                [rindx,cindx] = ind2sub([Fdim,Fdim],j); % Matrix element k,l
+                Crindx = rindx + Fdim*(0:1:nmons_Z-1);  % Row indices of associated coefficients of S
+                Ccindx = cindx + Fdim*(0:1:nmons_Z-1);  % Col indices of associated coefficients of S
+                Cindx = reshape(Crindx' + Fdim*nmons_Z*(Ccindx-1),[],1); % Linear indices of coefficients
+                
+                % Pair each monomial with the appropriate coefficient
+                rindx = sos.extravar.idx{var} + Cindx - 1;  % Rows in At associated to coefficients of S
+                cindx = (j-1)*nmons_new + Zindx;            % Columns in At associated to coefficients of S
+                Cindx = sub2ind(size(Atnew),rindx,cindx);   % Linear indices of coefficients
+                
+                % Finally, enforce the constraint M_kl(x) = S_kl(x)
+                Atnew(Cindx) = 1;
+                
+            end
+            sos.expr.At{i} = Atnew;     % Update the values of At and b
+            sos.expr.b{i} = bnew;
+   
+        end
+            
     end
-end;
+        
+else
+    % syms and pvar case, though pvar case does not get routed here!
+    for i = I
+        numstates = size(sos.expr.Z{i},2);%GV&JA 6/12/2013 % number of ind variables
+        % Creating extra variables
+        maxdeg = full(max(sum(sos.expr.Z{i},2))); % maximum total degree of the monomials
+        mindeg = full(min(sum(sos.expr.Z{i},2))); % minimum total degree of the monomials (for matrixvars, this will be at least 2)
+        Z = monomials(numstates,[floor(mindeg/2):ceil(maxdeg/2)]); % start with all monomials between min/2 and max/2
+        %disp(['Original : ',num2str(size(Z,1))]);
+        
+        % Discarding unnecessary monomials
+        maxdegree = sparse(max(sos.expr.Z{i},[],1)/2); % row of max degrees in each variable
+        mindegree = sparse(min(sos.expr.Z{i},[],1)/2); % row of min degrees in each variable
+        
+        Zdummy1 = bsxfun(@minus,maxdegree,Z); % maxdegree monomial minus each monomial
+        Zdummy2 = bsxfun(@minus,Z,mindegree); % each monomial minus mindegree monomial
+        [I,~] = find([Zdummy1 Zdummy2]<0); % rows which contain negative terms
+        IND = setdiff(1:size(Z,1),I,'stable'); % rows not listed in I
+        if isempty(IND) % 02/21/2022 - DJ: Add check in case problem is infeasible
+            fprintf(['\n Warning: Inequality constraint ',num2str(i),...
+                ' in your sos program structure corresponds to a polynomial that is not sum-of-squares.\n'])
+            feasextrasos = 0;   % Indicate the problem is not feasible.
+            return
+        else
+            Z = Z(IND,:);                       % discard all monomials rows listed in I
+        end
+        % Z is now the monomial vector in the quadratic representation Z^T Q Z
+        % as opposed to expr.Z which is all the monomials in the expression
+        
+        %GV 27/06/2014 - replaced the code below by the above, where the indexes
+        %are used to update the matrix of monomials. Matrices maxdegree and
+        %mindegree were set to be sparse.
+        
+        %     Iout = [];indI = 0;%GV 27/06/2014 checking correctness
+        %     Z = monomials(numstates,[floor(mindeg/2):ceil(maxdeg/2)]);%GV 27/06/2014 checking correctness
+        %     j = 1;
+        %     while (j <= size(Z,1))
+        %         indI = indI+1;%GV 27/06/2014 checking correctness
+        %         Zdummy1 = maxdegree-Z(j,:);
+        %         Zdummy2 = Z(j,:)-mindegree;
+        %         idx = find([Zdummy1, Zdummy2]<0);
+        %         if ~isempty(idx)
+        %             Iout = [Iout; indI];%GV 27/06/2014 checking correctness
+        %             Z = [Z(1:j-1,:); Z(j+1:end,:)];
+        %         else
+        %             j = j+1;
+        %         end;
+        %     end;
+        %     sparse(unique(I,'legacy')-Iout)%GV 27/06/2014 checking correctness
+        
+        
+        %disp(['Optimized : ',num2str(size(Z,1))]);
+        
+        % Convex hull algorithm
+        if strcmp(sos.expr.type{i},'sparse')
+            Z2 = sos.expr.Z{i}/2;
+            Z = inconvhull(full(Z),full(Z2));
+            Z = makesparse(Z);
+            %disp(['Optimized again : ',num2str(size(Z,1))]);
+        end;
+        
+        if strcmp(sos.expr.type{i},'sparsemultipartite')
+            Z2 = sos.expr.Z{i}/2; % lots of fractional degrees
+            info2 = sos.expr.multipart{i};%the vectors of independent variables
+            sizeinfo2m = length(info2);
+            vecindex = [];
+            for indm = 1:sizeinfo2m%for each set of independent variables (first true ind, then matrix)
+                sizeinfo2n(indm) = length(info2{indm}); % number of variables in cell
+                for indn = 1:sizeinfo2n(indm) %scroll through the matrix variables,
+                    
+                    if isfield(sos,'symvartable')%
+                        varcheckindex = find(info2{indm}(indn)==sos.symvartable);
+                        if ~isempty(varcheckindex)
+                            vecindex{indm}(indn) = varcheckindex;
+                        else
+                            vecindex{indm}(indn) = length(info2{1})+find(info2{indm}(indn)==sos.varmat.symvartable);%GV&JA 6/12/2013
+                        end
+                        
+                    else
+                        % PJS 9/12/13: Update code to handle polynomial objects
+                        var = info2{indm}(indn);
+                        cvartable = char(sos.varmat.vartable);
+                        
+                        if ispvar(var)
+                            % Convert to string representation
+                            var = var.varname;
+                        end
+                        varcheckindex = find(strcmp(var,sos.vartable));
+                        if ~isempty(varcheckindex)
+                            vecindex{indm}(indn) = varcheckindex;
+                        else
+                            vecindex{indm}(indn) = length(info2{1}) + find(strcmp(var,cvartable));
+                        end
+                        
+                        % PJS 9/12/13: Original Code to handle polynomial objects
+                        %vecindex{indm}(indn) = find(strcmp(info2{indm}(indn).varname,sos.vartable));
+                    end;
+                end
+            end
+            Z = sparsemultipart(full(Z),full(Z2),vecindex);
+            Z = makesparse(Z);
+        end;
+        % Z in the quadratic representation has now been updated.
+        
+        
+        dimp = size(sos.expr.b{i},2); % detecting whether Mineq is active
+        
+        % Adding slack variables
+        sos.extravar.num = sos.extravar.num + 1;
+        var = sos.extravar.num;
+        sos.extravar.Z{var} = makesparse(Z);
+        [T,ZZ] = getconstraint(Z);
+        sos.extravar.ZZ{var} = ZZ;
+        sos.extravar.T{var} = T'; %Z'QZ=vec(Q)T'ZZ (note the transpose to extravar.T)
+        %sos.extravar.idx{var+1} = sos.extravar.idx{var}+size(Z,1)^2;%GVcomment the next slack variable starts in the column i+dim(Z)^2 - the elements of the vectorized square matrix
+        
+        
+        sos.extravar.idx{var+1} = sos.extravar.idx{var}+(size(Z,1)*dimp)^2; % new decision variables associated with this constraint
+        for j = 1:sos.expr.num
+            sos.expr.At{j} = [sos.expr.At{j}; ...  %padding all the At{i} to make room for the new variables
+                sparse(size(sos.extravar.T{var},1)*dimp^2,size(sos.expr.At{j},2))];
+        end
+        
+        ZZ = flipud(ZZ);
+        T = flipud(T);
+        
+        Zcheck = sos.expr.Z{i};
+        %this is for the matrix case
+        
+        
+        if dimp==1
+            % JFS 6/3/2003: Ensure correct size: % Why? compensating for
+            % monomials incorrectly eliminated for sparse or multipartite case?
+            pc.Z = sos.extravar.ZZ{var};
+            pc.F = -speye(size(pc.Z,1));
+            [R1,R2,newZ] = findcommonZ(sos.expr.Z{i},pc.Z);
+            % JFS 6/3/2003: Ensure correct size:
+            
+            if isempty(sos.expr.At{i})
+                sos.expr.At{i} = sparse(size(sos.expr.At{i},1),size(R1,1));
+            end
+            %------------
+            sos.expr.At{i} = sos.expr.At{i}*R1;
+            lidx = sos.extravar.idx{var};
+            uidx = sos.extravar.idx{var+1}-1;
+            sos.expr.At{i}(lidx:uidx,:) = sos.expr.At{i}(lidx:uidx,:) - sos.extravar.T{var}*pc.F*R2; % why is expr.At in here? Should be zero...
+            sos.expr.b{i} = R1'*sos.expr.b{i};
+            sos.expr.Z{i} = newZ;
+            
+        else
+            ZZ = flipud(ZZ); %why? Only matrix case?
+            T = flipud(T);  % only matrix case?
+            Zcheck = sos.expr.Z{i}; % Zcheck is total list of monomials in the expression
+            %this is for the matrix case
+            % This is the code for the Mineq option
+            [R1,R2,Znew] = findcommonZ(Zcheck,ZZ);
+            
+            R1 = fliplr(R1);
+            R2 = fliplr(R2);
+            Znew = flipud(Znew);
+            
+            R1sum = sum(R1,1);
+            T = R2'*T;
+            
+            ii = 1;
+            sig_ZZ = size(ZZ,1);
+            sig_Z = size(Z,1);
+            sig_Znew = size(Znew,1);
+            
+            Tf = sparse(dimp^2*sig_Znew,(dimp*sig_Z)^2);
+            Sv = sparse(sig_Znew*dimp^2,1);
+            for j = 1:sig_Znew
+                Mt0 = sparse(dimp,dimp*sig_Z^2);
+                for k = 1:sig_Z
+                    Mt0(:, (dimp*sig_Z)*(k-1)+1:(dimp*sig_Z)*k) = kron(eye(dimp),T(j,(sig_Z)*(k-1)+1:(sig_Z)*k));
+                end
+                Tf((j-1)*dimp^2+1:j*dimp^2,:) = kron(eye(dimp),Mt0);
+                
+                if R1sum(j)==1
+                    Sv((j-1)*dimp^2+1:j*dimp^2)= reshape(sos.expr.b{i}( dimp*(ii-1)+1:dimp*ii,:)',dimp^2,1);
+                    if ii<size(Zcheck,1)
+                        ii = ii+1;
+                    end
+                else
+                    sos.expr.At{i} = [ sos.expr.At{i}(:,1:(j-1)*dimp^2) sparse(size(sos.expr.At{i},1),dimp^2) sos.expr.At{i}(:,(j-1)*dimp^2+1:end)];
+                end
+            end
+            
+            lidx = sos.extravar.idx{var};
+            uidx = sos.extravar.idx{var+1}-1;
+            sos.expr.At{i}(lidx:uidx,:) =  Tf';
+            sos.expr.b{i} =  Sv;
+            
+        end
+    end
+
+end
 
 % ====================================================================================
 function sos = addextrasosvar2(sos,I)
