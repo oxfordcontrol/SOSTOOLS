@@ -58,7 +58,8 @@ function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat,Type)
 % 6/30/21  - MP -- dpvar modifications
 % 7/12/21 - SS -- fixed typo in line 59, n_vars_dp to n_vars_p (however, this value seems to be unused)
 % 12/14/21 - DJ -- Fixed issues with symengine, missing ']', though more issues may be expected
-% 02/14/21 - DJ -- Adjustment for dpvar Mineq case
+% 02/14/22 - DJ -- Adjustment for dpvar Mineq case
+% 02/21/22 - DJ, PS -- Bugfix for sym case
 
 
 if isa(symexpr,'dpvar')  
@@ -305,7 +306,7 @@ else
         for i = 1:dimp
             for j = i:dimp
                 coefmon = feval(symengine,'poly2list',FPexpr(i,j),charvartable);
-                coefmon = coefmon.';
+                %coefmon = coefmon.';   % 02/21/22
                 for k = 1:length(coefmon)
                     dummyvar = reshape(coefmon(k),2,1);
                     Z(k,:) = double(dummyvar(2));
@@ -321,7 +322,7 @@ else
         for i = 1:dimp
             for j = i:dimp
                 coefmon = feval(symengine,'poly2list',FPexpr(i,j),charvartable);
-                coefmon = coefmon.';
+                %coefmon = coefmon.';   % 02/21/22
                 for k = 1:length(coefmon)
                     dummyvar = reshape(coefmon(k),2,1);
                     s_ijk = double(dummyvar(1));
