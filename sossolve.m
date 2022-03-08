@@ -73,6 +73,7 @@ function [sos,info] = sossolve(sos,options)
 %                   Also allow "options.simplify=0" as one of the options
 % 02/14/2022 - DJ - Initial dpvar version of addextrasosvar.
 % 02/25/2022 - DJ - Exit when monomials are empty in syms addextrasosvar
+% 03/08/2022 - DJ - Set default value "feasextrasos=1"
 
 if (nargin==1)
     %Default options from old sossolve
@@ -120,6 +121,7 @@ end;
 % Adding slack variables to inequalities
 sos.extravar.idx{1} = sos.var.idx{sos.var.num+1};
 % SOS variables
+feasextrasos = 1;   % Will be set to 0 if constraints are immediately found infeasible
 I = [find(strcmp(sos.expr.type,'ineq')), find(strcmp(sos.expr.type,'sparse')), find(strcmp(sos.expr.type,'sparsemultipartite'))];
 if ~isempty(I)
     [sos,feasextrasos] = addextrasosvar(sos,I);
