@@ -92,10 +92,14 @@ function a = subsasgn(a,L,RHS)
 %
 % Initial coding, DJ, MP, SS - 09/27/2021
 % added correction to allow dynamic extension of dpvar size, SS - 8/10/2021
+% 02/21/2022 - DJ: Update for case '.' to avoid use of "set".
 
 switch L(1).type
     case '.'
     % Assign a value RHS to one of the fields (e.g. a.matdim) of dpvar a
+        if ~ismember(L(1).subs,{'dvarname','varname','C','degmat','matdim'})
+            error(['Input "',L(1).subs,'" is not an assignable field of dpvar objects'])
+        end
         if length(L) == 1
             temp = RHS;
         else
@@ -103,8 +107,8 @@ switch L(1).type
             temp = subsref(a,L(1));
             temp = subsasgn(temp,L(2:end),RHS);
         end
-        a = set(a,L(1).subs,temp);
-        
+        %a = set(a,L(1).subs,temp); % <-- We don't have "set" for dpvar...
+        a.(L(1).subs) = temp;
     case '()'
     % Assign a value to certain rows/columns of dpvar a
         if length(L)==1
