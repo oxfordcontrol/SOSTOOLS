@@ -74,6 +74,7 @@ function [sos,info] = sossolve(sos,options)
 % 02/14/2022 - DJ - Initial dpvar version of addextrasosvar.
 % 02/25/2022 - DJ - Exit when monomials are empty in syms addextrasosvar
 % 03/08/2022 - DJ - Set default value "feasextrasos=1"
+% 03/09/2022 - DJ - Add check "isempty(K.s)" for sdpt3, sdpnal, sdpnalplus
 
 if (nargin==1)
     %Default options from old sossolve
@@ -315,7 +316,7 @@ elseif strcmp(lower(options.solver),'sdpt3')
         x(1:K.f) = X{1}(:);
         cellidx = 2;
     end;
-    if K.s(1) ~= 0
+    if ~(isempty(K.s) || K.s(1)==0)   % DJ, 03/09/2022  (do we need the K.s(1)~=0 check?)
         idxX = 1;
         idx = K.f+1;
         smblkdim = 100;
@@ -406,7 +407,7 @@ elseif strcmp(lower(options.solver),'sdpnal') %6/11/13 JA SDPNAL interface
         x(1:K.f) = X{1}(:);
         cellidx = 2;
     end;
-    if K.s(1) ~= 0
+    if ~(isempty(K.s) || K.s(1)==0)   % DJ, 03/09/2022  (do we need the K.s(1)~=0 check?)
         idxX = 1;
         idx = K.f+1;
         smblkdim = 100;
@@ -447,7 +448,7 @@ elseif strcmp(lower(options.solver),'sdpnalplus') %6/11/13 JA SDPNALPLUS interfa
         x(1:K.f) = X{1}(:);
         cellidx = 2;
     end;
-    if K.s(1) ~= 0
+    if ~(isempty(K.s) || K.s(1)==0)   % DJ, 03/09/2022  (do we need the K.s(1)~=0 check?)
         idxX = 1;
         idx = K.f+1;
         smblkdim = 100;
