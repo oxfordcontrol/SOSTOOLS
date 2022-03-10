@@ -109,7 +109,7 @@ if isdouble(symexpr)    % DJ, 02/21/2022
     symexpr = dpvar(symexpr);
 elseif isa(symexpr,'polynomial')
     % Convert polynomial to dpvar to avoid issue in sossolve
-    symexpr = poly2dpvar(symexpr,prog.decvartable);
+    symexpr = poly2dpvar(symexpr,sos.decvartable);
     % Not efficient, and not desirable if people want reversionary
     % implementation...
 end
