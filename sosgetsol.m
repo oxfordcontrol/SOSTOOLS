@@ -57,6 +57,7 @@ function p = sosgetsol(sos,V,digit)
 % 19/06/14 - GV, extends getsol for matrix variable under pvar
 % 06/09/13 - MP -- faster implementation for matrix-valued polynomials
 % 06/25/20 - Sachin -- fixed bug related constant polynomials
+% 04/19/22 - DJ -- Update to allow cellstr inputs
 
 if nargin == 2
     digit = 5;   % Default
@@ -68,7 +69,11 @@ if isfield(sos,'symvartable')
 
 else
     if isa(V,'dpvar')
-        V=dpvar2poly(V);
+        V = dpvar2poly(V);
+    elseif ischar(V)    % DJ - 04/19/22
+        V = polynomial({V});
+    elseif iscellstr(V)
+        V = polynomial(V);
     end
     
     [~,idxdecvar1,idxdecvar2] = intersect(V.varname,sos.decvartable);
