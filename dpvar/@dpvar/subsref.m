@@ -80,6 +80,7 @@ function Dpsub=subsref(Dp,ref)
 % bug fix correction for linear indexing Dp([1,2,3...]), incorrect
 % dimension in sosineq, SS - 8/11/2021
 % Bug fix for linear indexing, DJ - 10/15/2021
+% Update for matrix-valued linear indices, DJ - 04/19/2022
 
 switch ref(1).type
     case '.'
@@ -109,23 +110,31 @@ switch ref(1).type
             end
             
             % Output will be a column vector
-            mdim = [length(ref(1).subs{1}),1];
-            [indr,indc] = ind2sub(size(Dp),ref(1).subs{1});
+            mdim = size(ref(1).subs{1});
+            if ndims(mdim)~=2
+                error('Indices to dpvar objects can be at most 2 dimensional')
+            end
+            [indr,indc] = ind2sub(size(Dp),ref(1).subs{1}(:));
+            indr = reshape(indr,mdim);
+            indc = reshape(indc,mdim);
             
             % Determine rows in coefficient matrix associated with the desired
             % rows of the actual object
-            nr = length(indr);
-            indr = kron(vec((indr-1)*Zdlen),ones(Zdlen,1)) + repmat((1:Zdlen)',nr,1);
+            nr = size(indr,1);
+            indr = kron((indr-1)*Zdlen,ones(Zdlen,1)) + repmat((1:Zdlen)',nr,1);
             indr = repmat(indr,Zplen,1);
+            indr = indr(:);
             
             % Determine columns in coefficient matrix associated with the desired
             % rows of the actual object
-            indc = kron((vec(indc) - 1)*Zplen + (1:Zplen),ones(Zdlen,1));
+            nc = size(indc,2);
+            indc = kron((indc-1)*Zplen,ones(1,Zplen)) + repmat((1:Zplen),1,nc);
+            indc = kron(indc,ones(Zdlen,1));
             indc = indc(:);
             
             % Extract the appropriate elements from the coefficient matrix
             linidx = sub2ind(size(Dp.C),indr,indc);
-            Csub = spalloc(mdim(1)*Zdlen,Zplen,nnz(Dp.C));
+            Csub = spalloc(mdim(1)*Zdlen,mdim(2)*Zplen,nnz(Dp.C));  % Do we have a better estimate for the number of nonzeros?
             Csub(:) = Dp.C(linidx);
             
             % Build the new dpvar with the adjusted coefficient matrix and dimension
