@@ -54,7 +54,21 @@ function b = sprepmat(a,m,n)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
-% 1/30/2003: PJS  Initial Coding  
+% 1/30/2003: PJS  Initial Coding
+% 04/20/2022 - DJ -- allow case with 2 inputs
+
+if nargin<2
+    error('At least 2 input arguments must be provided')
+elseif nargin==2
+    if length(m)==2
+        n = m(2);
+        m = m(1);
+    else
+        error('Second argument must be 1x2 array when no third argument is specified')
+    end
+elseif nargin>3
+    error('At most three arguments can be specified (sparse matrices can only be 2D)')
+end
 
 [nra,nca] = size(a);
 ridx = (1:nra)';
