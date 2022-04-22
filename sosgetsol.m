@@ -73,7 +73,13 @@ else
     elseif ischar(V)    % DJ - 04/19/22
         V = polynomial({V});
     elseif iscellstr(V)
-        V = polynomial(V);
+        V = combine(polynomial(V));
+    elseif isa(V,'cell')
+        p = cell(size(V));
+        for k=1:numel(p)
+            p{k} = sosgetsol(sos,V{k},digit);
+        end
+        return
     end
     
     [~,idxdecvar1,idxdecvar2] = intersect(V.varname,sos.decvartable);
