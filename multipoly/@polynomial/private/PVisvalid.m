@@ -66,7 +66,7 @@ adegnz = nonzeros(adeg);
 if ~( isa(adeg,'double') && isreal(adeg) && ndims(adeg)==2 && ...
         all(floor(adegnz)==ceil(adegnz)) && all(adegnz >= 0) )
     flag = 0;
-    errormsg='Degmat should be a matrix of nautral numbers';
+    errormsg='Degmat should be a matrix of natural numbers';
     return;
 end
 
