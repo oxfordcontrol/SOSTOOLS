@@ -75,6 +75,8 @@ function [GAM,vars,xopt] = findbound(p,ineq,eq,DEG,options)
 % switched gam to dpvar -MMP 8/6/2021
 % Adjusted to use symvar instead of findsym - DJ, 10/14/2021
 % Removed num2cell in case when variables are pvar - DJ, 12/10/2021
+% Fix for polynomial with empty degmat + dpvar implementation - DJ, 04/24/2022
+
 switch nargin
     case 1 
         options.solver='sedumi';
@@ -105,14 +107,39 @@ switch nargin
         eq = eq(:);
 end
 
-
+% Inequality and equality expressions should not contain any decision
+% variables
+if isa(ineq,'dpvar')
+    ineq = compress(ineq);
+    if ~isempty(ineq.dvarname)
+        warning('The inequality constraints should not contain any decision variables; converting to independent variables...')
+    end
+    ineq = dpvar2poly(ineq);
+end
+if isa(eq,'dpvar')
+    eq = compress(eq);
+    if ~isempty(eq.dvarname)
+        warning('The equality constraints should not contain any decision variables; converting to independent variables...')
+    end
+    eq = dpvar2poly(eq);
+end
+% Decision variables in the expression should not appear in the equality
+% and inequality constraints
+if isa(p,'dpvar')
+    if (isa(ineq,'polynomial') && any(ismember(p.dvarname,ineq.varname))) || ...
+            (isa(eq,'polynomial') && any(ismember(p.dvarname,eq.varname)))
+        warning('Certain independent variables in the constraints appear as decision variables in the polynomial; converting to independent variables')
+        p = dpvar2poly(p);
+    end
+end
+    
 vect = [p; ineq; eq];
 
 % Find the independent variables, check the degree
 if isa(vect,'sym')
    %varschar = findsym(vect);  %vars = sym(['[',varschar,']']);
    vars = symvar(vect);         % DJ, 10-14-2021
-   nvars = size(vars,2) ; 
+   nvars = size(vars,2);
    if nargin > 2
        degree = 2*floor(DEG/2);
        deg = zeros(length(vect),1);
@@ -134,9 +161,10 @@ if isa(vect,'sym')
        end;
    end;
    syms gam;
+   dvars = gam;
    
-else
-   varname = vect.var;
+elseif isa(vect,'polynomial')
+   varname = vect.varname;
    vars = [];
    for i = 1:size(varname,1)
        pvar(varname{i});
@@ -148,8 +176,13 @@ else
        degmat = sum(vect.degmat,2);
        deg = zeros(length(vect),1);
        for i = 1:length(vect)
-           idx = find(vect.coefficient(:,i));
-           deg(i) = max(degmat(idx));
+           idx = vect.coefficient(:,i)~=0;
+           deg_i = max(degmat(idx));
+           if isempty(deg_i)    % DJ, 04/24/2022
+               deg(i) = 0;
+           else
+               deg(i) = deg_i;
+           end
            if deg(i) > degree
                error('One of the expressions has degree greater than DEG.');
            end;
@@ -165,7 +198,47 @@ else
        end;
    end;
    dpvar gam;
-end;
+   dvars = gam;
+   
+elseif isa(vect,'dpvar')
+   varname = vect.varname;
+   vars = combine(polynomial(varname'));
+   dvarname = vect.dvarname;
+   dvars = combine(dpvar(dvarname'),'extended');
+   ndvars = length(dvarname);
+   
+   if nargin > 2
+       degree = 2*floor(DEG/2);
+       degmat = sum(vect.degmat,2);
+       deg = zeros(length(vect),1);
+       for i = 1:length(vect)
+           i_indcs = ((i-1)*ndvars + 1 : i*ndvars);
+           idx = vect.C(i_indcs,:)~=0;
+           deg_i = max(degmat(idx));
+           if isempty(deg_i)
+               deg(i) = 0;
+           else
+               deg(i) = deg_i;
+           end
+           if deg(i) > degree
+               error('One of the expressions has degree greater than DEG.');
+           end
+       end 
+   else
+       deg = mod(max(p.degmat,[],1),2);
+       if sum(deg)~=0
+           i = find(deg~=0);
+           disp(['Degree in ' varname{i(1)} ' should be even. Otherwise the polynomial is unbounded.']);
+           GAM = -Inf;
+           xopt = [];
+           return;
+       end
+   end
+   dpvar gam;
+   dvars = [dvars,gam];
+else
+    error('Function and constraints should be specified as "sym", "polynomial" or "dpvar" class objects');
+end
 
 % Construct other valid inequalities
 if length(ineq)>1
@@ -186,7 +259,7 @@ if length(ineq)>1
     ineq = ineqtemp;
 end;
 
-prog = sosprogram(vars,gam);
+prog = sosprogram(vars,dvars);
 expr = p-gam;
 for i = 1:length(ineq)
     [prog,sos] = sossosvar(prog,monomials(vars,0:floor((degree-deg(i+1))/2)));
@@ -203,7 +276,7 @@ prog = sossetobj(prog,-gam);
 
 xopt = [];
 
-if (info.dinf>1e-2)|(info.pinf>1e-2)
+if (info.dinf>1e-2) || (info.pinf>1e-2)
     disp('No lower bound could be computed. Unbounded below or infeasible?');
     GAM = '-inf';
     return;
@@ -219,7 +292,7 @@ else
     xopt = prog.solinfo.extravar.dual{1}(ix,1) ;
     vars = vars.';
         
-    if isa(vars,'sym')   % DJ, check class type, 12-10-2021
+    if isa(p,'sym')   % DJ, check class type, 12-10-2021
     % If the upper and lower bounds are close (absolute or relative), return them
         ach = double(subs(p,num2cell(vars).',num2cell(xopt).'));
         
@@ -243,7 +316,7 @@ else
             xopt = [];
             return;
         end;
-    else
+    elseif isa(p,'polynomial')
     % If the upper and lower bounds are close (absolute or relative), return them
         ach = double(subs(p,vars,xopt));
         
@@ -267,11 +340,31 @@ else
             xopt = [];
             return;
         end        
+    else
+    % If the upper and lower bounds are close (absolute or relative), return them
+        psol = sosgetsol(prog,p,16);
+        ach = double(subs(psol,vars,xopt));
+        
+        if min(abs(ach/GAM-1),abs(ach-GAM)) > 1e-4
+            xopt = [];
+            return;
+        end
+        
+        % Check inequality and equality constraints
+        if length(ineq)>1
+            ineq = double(subs(ineq,vars,xopt));
+        else
+            ineq = 0;
+        end
+        if length(eq)>1
+            eq = double(subs(eq,vars,xopt));
+        else
+            eq = 0;
+        end
+        if min(ineq)<-1e-6 || max(abs(eq))>1e-6
+            xopt = [];
+            return;
+        end        
     end
     
-
-    
 end;
-
-
-
