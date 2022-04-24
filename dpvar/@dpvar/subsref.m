@@ -81,6 +81,7 @@ function Dpsub=subsref(Dp,ref)
 % dimension in sosineq, SS - 8/11/2021
 % Bug fix for linear indexing, DJ - 10/15/2021
 % Update for matrix-valued linear indices, DJ - 04/19/2022
+% Correction for ":" case, DJ - 04/24/2022
 
 switch ref(1).type
     case '.'
@@ -99,7 +100,7 @@ switch ref(1).type
             % % Distinguish case of linear indexing
             
             if strcmp(ref(1).subs{1},':')
-                ref(1).subs{1} = 1:matdim(1)*matdim(2);
+                ref(1).subs{1} = (1:matdim(1)*matdim(2))';
             end
             
             % Error checking
