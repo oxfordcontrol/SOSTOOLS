@@ -19,6 +19,7 @@ function c = times(a,b)
 %     Function-call form for times.
 
 % 10/22/2002: PJS  Initial Coding
+% 06/17/22: DJ, Allow outer product of vector polynomials
 
 % Promote a to polynomial
 a = polynomial(a);
@@ -114,18 +115,14 @@ elseif all(sza==[1 1]) || all(szb==[1 1])
         a.matdim = szb;
         c = times(a,b);
     end
+elseif sza(1)==1 && szb(2)==1   % DJ, 06/17/22
+    a = repmat(a,[szb(1),1]);
+    b = repmat(b,[1,sza(2)]);
+    c = times(a,b);
+elseif sza(2)==1 && szb(1)==1
+    a = repmat(a,[1,szb(2)]);
+    b = repmat(b,[sza(1),1]);
+    c = times(a,b);
 else
     error('Matrix dimensions must agree');
 end
-
-
-
-
-
-
-
-
-
-
-
-
