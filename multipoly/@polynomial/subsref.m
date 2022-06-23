@@ -18,6 +18,7 @@ function varargout = subsref(a,L)
 %   B=subsref(A,L)
 
 % 6/7/2002: PJS  Initial Coding
+% 06/22/2022: DJ, Add option for logical row and column indexing
 
 switch L(1).type
     case '.'
@@ -62,9 +63,15 @@ switch L(1).type
             if strcmp(ridx,':')
                 ridx = 1:nra;
             end
+            if islogical(ridx)  % DJ, 06/22/2022
+                ridx = find(ridx);
+            end
             cidx = L(1).subs{2};
-            if strcmp(cidx,':');
+            if strcmp(cidx,':')
                 cidx = 1:nca;
+            end
+            if islogical(cidx)
+                cidx = find(cidx);
             end
             
             % Check Indices

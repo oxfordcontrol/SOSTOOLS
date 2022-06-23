@@ -20,6 +20,7 @@ function b = PVsubsasgn_1idx(a,L,RHS)
 
 % 6/9/2002: PJS  Initial Coding
 % 11/11/2008: PJS Mods to reduce computation
+% 06/22/2022: DJ, Fix logical indexing case
 
 % Check Indices
 subsidx = L(1).subs{1};
@@ -30,7 +31,15 @@ end
 
 ls = length(subsidx);
 if isa(subsidx,'logical')
-    subsidx = find(subsidx);
+    if ~any(subsidx)    % DJ, 06/22/2022
+        % No element has to be adjusted
+        b=a;
+        return
+    else
+        % Convert to linear indexing
+        subsidx = find(subsidx);
+        ls = length(subsidx);
+    end
 elseif min(subsidx)<1
     error('Index into matrix is negative or zero.');
 end

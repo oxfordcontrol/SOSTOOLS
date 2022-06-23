@@ -21,11 +21,18 @@ function b = PVsubsasgn_2idx(a,L,RHS)
 % 6/9/2002: PJS  Initial Coding
 % 11/11/2008: PJS Mods to reduce computation
 % 1/13/2011: PJS  Fixed bug in sub2ind conversion
+% 06/22/2022: DJ Add option for logical indexing
 
 % Check Indices
 ridx = L(1).subs{1};
+if islogical(ridx)  % DJ, 06/22/2022
+    ridx = find(ridx);
+end
 lr = length(ridx);
 cidx = L(1).subs{2};
+if islogical(cidx)
+    cidx = find(cidx);
+end
 lc = length(cidx);
 if min(ridx)<1 || min(cidx)<1
     error('Index into matrix is negative or zero.');
