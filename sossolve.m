@@ -9,7 +9,7 @@ function [sos,info] = sossolve(sos,options)
 % and/or the solver-specific options respectively by fields
 %
 % SOLVER_OPT.solver (name of the solver). This can be 'sedumi', 'sdpnal',
-% 'sdpnalplus', 'cdsp', 'cdcs', 'sdpt3', 'sdpa'.
+% 'sdpnalplus', 'csdp', 'cdcs', 'sdpt3', 'sdpa'.
 % SOLVER_OPT.params (a structure containing solver-specific parameters)
 %
 % The default values for solvers is 'SeDuMi' with parameter ALG = 2, which
@@ -61,7 +61,7 @@ function [sos,info] = sossolve(sos,options)
 % 12/25/01   - SP
 % 01/05/02   - SP - primal
 % 01/07/02   - SP - objective
-% aug/13     - JA,GV - CDSP,SDPNAL,SDPA solvers and SOS matrix decomposition
+% aug/13     - JA,GV - CSDP,SDPNAL,SDPA solvers and SOS matrix decomposition
 % 06/01/16   - JA - added interface to frlib facial reduction package by
 %                 F Permenter and PP.
 % 01/04/18   - AP - Added CDCS and SDPNALplus
@@ -75,6 +75,7 @@ function [sos,info] = sossolve(sos,options)
 % 02/25/2022 - DJ - Exit when monomials are empty in syms addextrasosvar
 % 03/08/2022 - DJ - Set default value "feasextrasos=1"
 % 03/09/2022 - DJ - Add check "isempty(K.s)" for sdpt3, sdpnal, sdpnalplus
+% 08/14/2022 - DJ - Add check "phasevalue==pUNBD" and "==dUNBD" for sdpa.
 
 if (nargin==1)
     %Default options from old sossolve
@@ -496,6 +497,14 @@ elseif strcmp(lower(options.solver),'sdpa')
     elseif strcmp(info.phasevalue,'pFEAS_dINF') % dual infesaible, primal feasible
         info.dinf=1;
         info.pinf=0;
+    elseif strcmp(info.phasevalue,'pUNBD')  % primal problem unbounded
+        info.dinf=1;
+        info.pinf=0;
+        fprintf('\n The primal problem is likely unbounded.\n')
+    elseif strcmp(info.phasevalue,'dUNBD')  % dual problem unbounded
+        info.dinf=0;
+        info.pinf=1;
+        fprintf('\n The dual problem is likely unbounded.\n') 
     elseif strcmp(info.phasevalue,'noINFO') || strcmp(info.phasevalue,'pFEAS') || strcmp(info.phasevalue,'dFEAS')% max. iterations exceeded no idea if feasible
         if info.primalError < 1e-6 || strcmp(info.phasevalue,'pFEAS')
             info.pinf = 0;
