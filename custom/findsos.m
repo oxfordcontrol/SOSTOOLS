@@ -66,7 +66,9 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 
 % 12/27/01 - SP
 % 03/27/02 - SP
-% 02/14/21 - DJ -- Convert Q to full before taking sqrtm(Q)  in computing L
+% 02/14/21 - DJ: Convert Q to full before taking sqrtm(Q)  in computing L
+% 08/14/22 - DJ: Adjust polynomial implementation of 'rational' case. 
+%                Also allow rational expansion in non-integer case.
 
 
 if nargin == 2
@@ -75,7 +77,7 @@ if nargin == 2
 		flag = 'abcdefgh';
 	else
 		options.solver='sedumi';
-		flag = 'abcdefgh';
+		%flag = 'abcdefgh';     % DJ, 08/14/22: should not overwrite flag, right?
     end
 elseif nargin==1
 	options.solver='sedumi';
@@ -164,13 +166,19 @@ if isa(P,'sym')
 		while kmax ~= 0 ;
 			kmax = kmax - 1 ;
 			x0 = round(N*xx);
-			[Qflat,NN] = proj3(x0,A,B,N);
-			n = sqrt(length(Qflat));
-			Qr = reshape(Qflat,n,n);
-			% Qr should be PSD (should really check symbolically)
-			if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
-			% Increase N, and try again
-			N = 2*N ;
+            try [Qflat,NN] = proj3(x0,A,B,N);
+                n = sqrt(length(Qflat));
+                Qr = reshape(Qflat,n,n);
+                % Qr should be PSD (should really check symbolically)
+                if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
+                % Increase N, and try again
+                N = 2*N;
+            catch
+                NN = 1;
+                n = sqrt(length(xx));
+                Qr = reshape(xx,n,n);
+                break
+            end
 		end
 		
 		% Experimental, no good error checking yet, so we check that
@@ -192,6 +200,9 @@ if isa(P,'sym')
 				disp('To obtain an exact rational solution, run the function with three output arguments.');
 			end;
 		end;
+        
+    elseif nargout==4
+        Den = 1;
 		
 	end;
 	
@@ -244,7 +255,7 @@ else
     prog = sosineq(prog,dpvar(P));
 	[prog,info] = sossolve(prog,options); %AP edit to pass solver.
 	
-	if 'solver' == 'SDPNAL'
+	if strcmp('solver','SDPNAL')
 		disp('findsos function currently not supported for SDPNAL solver');
 		Q = [];
 		Z = [];
@@ -282,22 +293,30 @@ else
 		
 		kmax = 10 ;
 		pd = 0 ;
-		while kmax ~= 0 ;
+		while kmax ~= 0
 			kmax = kmax - 1 ;
 			x0 = round(N*xx);
-			[Qflat,NN] = proj3(x0,A,B,N);
-			n = sqrt(length(Qflat));
-			Qr = reshape(Qflat,n,n);
-			% Qr should be PSD (should really check symbolically)
-			if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
-			% Increase N, and try again
-			N = 2*N ;
+            try [Qflat,NN] = proj3(x0,A,B,N);
+                n = sqrt(length(Qflat));
+                Qr = reshape(Qflat,n,n);
+                % Qr should be PSD (should really check symbolically)
+                if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
+                % Increase N, and try again
+                N = 2*N;
+            catch
+                NN = 1;
+                n = sqrt(length(xx));
+                Qr = reshape(xx,n,n);
+                break
+            end
 		end
 		
 		% Experimental, no good error checking yet, so we check that
 		% expand(NN*P - Z.'*Qr*Z) is zero!
-		
-		if (expand(NN*P-Z.'*Qr*Z) ~= 0) | (pd == 0);
+		err = NN*P-Z.'*Qr*Z;
+		if (isa(err,'polynomial') && max(max(abs(err.coeff)))>=1e-14) ...
+                || (isa(err,'double') && ~all(err==0)) || (pd == 0)  % DJ, 08/14/22: remove call to "expand"
+            % shouldn't we return the non-rational expansion?
 			Qr=[];Z=[];NN=[];
 			disp('Could not compute a rational SOS!');
 		end
@@ -313,6 +332,9 @@ else
 				disp('To obtain an exact rational solution, run the function with three output arguments.');
 			end;
 		end;
+        
+    elseif nargout==4
+        Den = 1;
 		
 	end;
 		
