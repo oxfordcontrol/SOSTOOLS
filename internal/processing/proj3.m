@@ -47,6 +47,7 @@ function [x,NN] = proj3(x0,A,b,N)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
+% DJ, 08/14/22: Allow projection for non-integer B.
 
 %aa = (A*A');
 aa = sum(A.*A,2);
@@ -55,8 +56,16 @@ x = N2*x0 - A'*( (N2 ./aa) .* (A*x0-b*N)) ;
 
 NN = N2*N;
 
+% Compute an initial rational approximation: x = ~/Den
+[~,Den] = rat(x);     
+x = x*prod(unique(Den));
+NN = NN*prod(unique(Den));
+
 % Make sure it's minimal
-[dum1,dum2,nz]=find(unique(abs(x)));
-cfact = gcds([nz ; NN]);
+[~,~,nz]=find(unique(abs(x)));
+try cfact = gcds([nz ; NN]);
+catch
+    error('No reasonable projection with rational values is possible')
+end
 x = x/cfact ;
 NN = NN/cfact ;
