@@ -69,6 +69,7 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 % 02/14/21 - DJ: Convert Q to full before taking sqrtm(Q)  in computing L
 % 08/14/22 - DJ: Adjust polynomial implementation of 'rational' case. 
 %                Also allow rational expansion in non-integer case.
+% 09/03/22 - DJ: Initialize empty output fields if nargout>=3.
 
 
 if nargin == 2
@@ -89,6 +90,10 @@ if isa(P,'sym')
 		disp(['The polynomial matrix is not square, it cannot be a sum of squares']);
 		Q = [];
 		Z = [];
+        if nargout >= 3
+			decomp = [];
+			Den = [];
+        end
 		return;
 	end;
 	
@@ -116,6 +121,10 @@ if isa(P,'sym')
 		disp(['The polynomial matrix is not symmetric, it can not be a sum of squares']);
 		Q = [];
 		Z = [];
+        if nargout >= 3
+			decomp = [];
+			Den = [];
+        end
 		return;
 	end;
 	
@@ -207,7 +216,7 @@ if isa(P,'sym')
 	end;
 	
 	
-	L = real(sqrtm(double(Q))); %AP edit for first order solver accuracy
+	L = real(sqrtm(full(double(Q)))); %AP edit for first order solver accuracy
 	decomp = L*(kron(eye(dimp(1)),Z));
 	
 else 
@@ -220,6 +229,10 @@ else
 		disp(['The polynomial matrix is not square, it cannot be a sum of squares']);
 		Q = [];
 		Z = [];
+        if nargout >= 3
+			decomp = [];
+			Den = [];
+        end
 		return;
 	end;
 	
@@ -234,9 +247,13 @@ else
 			Pjj = P(j,j);
 			maxdeg = max(Pjj.degmat(:,var));
 			if rem(maxdeg,2)
-				disp(['Degree in ' char(vars(var)) ' is not even for the diagonal elements. The polynomial matrix cannot be a sum of squares']);
+				disp(['Degree in ',vars(var).varname{1},' is not even for the diagonal elements. The polynomial matrix cannot be a sum of squares']);
 				Q = [];
 				Z = [];
+                if nargout >= 3
+                    decomp = [];
+                    Den = [];
+                end
 				return;
 			end;
 		end;
@@ -247,6 +264,10 @@ else
 		disp(['The polynomial matrix is not symmetric, it can not be a sum of squares']);
 		Q = [];
 		Z = [];
+        if nargout >= 3
+			decomp = [];
+			Den = [];
+        end
 		return;
 	end;
 	
