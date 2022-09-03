@@ -76,6 +76,7 @@ function [sos,info] = sossolve(sos,options)
 % 03/08/2022 - DJ - Set default value "feasextrasos=1"
 % 03/09/2022 - DJ - Add check "isempty(K.s)" for sdpt3, sdpnal, sdpnalplus
 % 08/14/2022 - DJ - Add check "phasevalue==pUNBD" and "==dUNBD" for sdpa.
+% 09/03/2022 - DJ - Add check K.q==0 and K.r==0 in call to sdpa.
 
 if (nargin==1)
     %Default options from old sossolve
@@ -483,6 +484,13 @@ elseif strcmp(lower(options.solver),'sdpa')
     % SDPA in action
     disp(['Size: ' num2str(size(At))]);
     disp([' ']);
+    if isfield(K,'q') && isequal(K.q,0)
+        K = rmfield(K,'q');
+    end
+    if isfield(K,'r') && isequal(K.r,0)
+        K = rmfield(K,'r');
+    end
+        
     [x,y,info]=sedumiwrap(At',b,c,K,[],pars);
     
     if strcmp(info.phasevalue,'pdOPT')|| strcmp(info.phasevalue,'pdFEAS')%primal and dual optimal or feasible
