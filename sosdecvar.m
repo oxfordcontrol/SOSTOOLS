@@ -47,20 +47,25 @@ function sos = sosdecvar(sos,decvartable)
 % Change log and developer notes
 % 20/03/02 - SP
 % 07/28/21 - MP Conversion to dpvar
+% 12/02/22 - DJ Bugfix for vector-valued decision variables.
 
 % Update tables and indices
 if isfield(sos,'symvartable')
 
-	decvartabletemp = sym2chartable(decvartable);  
+	%decvartabletemp = sym2chartable(decvartable);  
+    if isrow(decvartable)       % DJ, 12/02/22
+        decvartabletemp = converttochar(decvartable);
+    else
+        decvartabletemp = converttochar(decvartable.');
+    end
 	if length(sos.decvartable) ~= 2
-        sos.decvartable = [decvartabletemp(1:end-1),',',sos.decvartable(2:end)];
-        
+        sos.decvartable = [decvartabletemp(1:end-1),', ',sos.decvartable(2:end)];
     else
         sos.decvartable = [decvartabletemp(1:end)];  % Special case: previously empty table
-	end;
+    end
 	if size(decvartable,2) > 1
         decvartable = decvartable.';
-	end;
+    end
 	sos.symdecvartable = [decvartable; sos.symdecvartable];
     offset = length(decvartable);
 elseif isa(decvartable,'dpvar')
@@ -82,19 +87,19 @@ else
 %     assignin('base',decvartable(i).varname{1},dpvar_out(i))
 %     end
     offset = length(decvartable.varname);
-end;
+end
     
     
 %offset = length(decvartable); -MP moved this into the cases to reflect
 %different uses for poly/dpvar/sym
 for i = 1:sos.var.num+1
     sos.var.idx{i} = sos.var.idx{i} + offset;
-end;
+end
 
 % Update existing equations
 for i = 1:sos.expr.num
     sos.expr.At{i} = [sparse(offset,size(sos.expr.At{i},2));sos.expr.At{i}]; 
-end;
+end
 
 % Update existing objective
 sos.objective = [sparse(offset,1); sos.objective];
