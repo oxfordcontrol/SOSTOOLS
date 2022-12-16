@@ -77,6 +77,7 @@ function [sos,info] = sossolve(sos,options)
 % 03/09/2022 - DJ - Add check "isempty(K.s)" for sdpt3, sdpnal, sdpnalplus
 % 08/14/2022 - DJ - Add check "phasevalue==pUNBD" and "==dUNBD" for sdpa.
 % 09/03/2022 - DJ - Add check K.q==0 and K.r==0 in call to sdpa.
+% 12/15/2022 - DJ - Remove 0x0 decision variables after psimplify.
 
 if (nargin==1)
     %Default options from old sossolve
@@ -192,7 +193,7 @@ if options.simplify==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(op
     b = b;
     chosen_idx = (dv2x ~= 0);
     c = c(chosen_idx);
-    K = K;
+    K.s(K.s==0) = [];   % Get rid of 0x0 variables, DJ - 12/15/22
     size_AT_solved = size(At);
     %if size(At,2)~=length(b) | length(b) > length(c)
     %    error('Error simplifying the problem, it may be infeasible. Try running without ''simplify''.')
