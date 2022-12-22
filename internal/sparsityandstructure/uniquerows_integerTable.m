@@ -22,6 +22,8 @@ function [newC,uniqueZ] = uniquerows_integerTable(C,Z,opts)
 % NOTES: 
 % If no coefficients C are specified, the function assumes C = eye(nZ),
 % such that   newC * uniqueZ = Z   or   newC' * uniqueZ = Z;
+% If also nargout==1, only the unique rows uniqueZ will be returned, no
+% coefficient matrix newC.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 
@@ -112,6 +114,10 @@ rvec = cumsum([1; ~repeatidx]);
 uniqueidx = sortidx;
 uniqueidx( repeatidx ) = [];
 uniqueZ = Z(uniqueidx,:);
+if nargout==1 && use_eye
+    newC = uniqueZ;
+    return
+end
 
 % Sum repeated coefficients in C
 %  (Use sparse multiply, C*summat, to sum the columns)
