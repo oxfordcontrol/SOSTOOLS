@@ -63,6 +63,7 @@ function [sos,P] = sospolymatrixvar(sos,ZSym,n,matrixstr,PVoption)
 % -MP 6/27/2021: updated to dpvar output. Disabled use of symbolic
 % variables. 
 % -DJ, 12/10/2021: Adjusted call to sospolyvar when using 'pvar' option
+% -DJ, 01/30/2023: Fix check "PVoption" in case when "matrixstr" is empty.
 
 
 % Original Code
@@ -124,7 +125,7 @@ else
             end
         end
         
-    elseif nargin==5 && strcmp(output,'pvar')
+    elseif nargin==5 && strcmp(PVoption,'pvar')
         P = polynomial(zeros(n(1),n(2)));
         for i = 1:n(1)
             for j = 1:n(2)
