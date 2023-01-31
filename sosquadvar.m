@@ -106,7 +106,6 @@ function [sos,P] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 % and off-diagonal computations under toggle==1
 % 07/12/21, DJ: Added code to adjust the order of the rows in the degmats
 % of Z1c{i} and Z2c{j} to match the rows in the associated monomials
-% 07/13/21, DJ: Adjusted specification of dvars to use int2coeff function
 % 07/14/21, DJ: Adjusted specification of dvars to use fastint2str function
 
 toggle=2;
@@ -129,7 +128,7 @@ end
 
 
 celltoggle=1;
-if ~iscell(Z1c) && ~iscell(Z1c)
+if ~iscell(Z1c) && ~iscell(Z2c)
     celltoggle=0;
 end
 
