@@ -69,7 +69,7 @@ fprintf(fid,'stdout_off\n');
 fclose(fid);
 
 % Now, run CDD
-cmd = [cdd ' ' filename];
+cmd = ['"',cdd,'"', ' ' filename];
 
 vv = version;
 if str2num(vv(1))>5
