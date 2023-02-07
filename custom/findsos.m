@@ -70,6 +70,7 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 % 08/14/22 - DJ: Adjust polynomial implementation of 'rational' case. 
 %                Also allow rational expansion in non-integer case.
 % 09/03/22 - DJ: Initialize empty output fields if nargout>=3.
+% 02/07/23 - DJ: Bugfix case where P has constant elements (on diagonal).
 
 
 if nargin == 2
@@ -84,28 +85,33 @@ elseif nargin==1
 	options.solver='sedumi';
 end
 
+
+% Check if matrix is square
+dimp = size(P);
+if dimp(1)~=dimp(2)
+	disp('The polynomial matrix is not square, it cannot be a sum of squares');
+	Q = [];
+	Z = [];
+    if nargout >= 3
+		decomp = [];
+		Den = [];
+    end
+	return
+end
+
+if isa(P,'double')
+    % The object is just a constant matrix --> convert to polynomial
+    P = polynomial(P);
+end
+
 if isa(P,'sym')
-	dimp = size(P);
-	if dimp(1)~=dimp(2) ;
-		disp(['The polynomial matrix is not square, it cannot be a sum of squares']);
-		Q = [];
-		Z = [];
-        if nargout >= 3
-			decomp = [];
-			Den = [];
-        end
-		return;
-	end;
-	
 	
 	P = expand(P);  % Do we need this? JA
 	%vars = findsym(P);
 	%vars = sym(['[',vars,']']);
 	vars = symvar(P);  % JA Edit
 	
-	nvars = size(vars,2) ;
-	
-	
+	%     nvars = size(vars,2);
 	%     for var = 1:nvars;
 	%         for j = 1:dimp(1)
 	%             if rem(double(feval(symengine,'degree',P(j,j))),2) ;
@@ -130,7 +136,7 @@ if isa(P,'sym')
 	
 	prog = sosprogram(vars);
 	prog = sosineq(prog,P);
-	[prog,info] = sossolve(prog,options);
+    [prog,info] = sossolve(prog,options);
 	
 	if strcmp(options.solver,'SDPNAL')
 		disp('findsos function currently not supported for SDPNAL solver');
@@ -224,18 +230,6 @@ else
 	% Most of this code simply mimics the symbolic case and hence the
 	% overlap can be reduced.
 	
-	dimp = size(P);
-	if dimp(1)~=dimp(2) ;
-		disp(['The polynomial matrix is not square, it cannot be a sum of squares']);
-		Q = [];
-		Z = [];
-        if nargout >= 3
-			decomp = [];
-			Den = [];
-        end
-		return;
-	end;
-	
 	nvars = P.nvar;
 	vars = polynomial(zeros(nvars,1));
 	for j = 1:nvars
@@ -245,7 +239,11 @@ else
 	for var = 1:nvars;
 		for j = 1:dimp(1)
 			Pjj = P(j,j);
-			maxdeg = max(Pjj.degmat(:,var));
+            if isempty(Pjj.degmat)
+                maxdeg = 0;
+            else
+			    maxdeg = max(Pjj.degmat(:,var));
+            end
 			if rem(maxdeg,2)
 				disp(['Degree in ',vars(var).varname{1},' is not even for the diagonal elements. The polynomial matrix cannot be a sum of squares']);
 				Q = [];
@@ -272,7 +270,10 @@ else
 	end;
 	
 	prog = sosprogram(vars);
-	%prog = sosineq(prog,P);
+    if isempty(P.degmat)
+        % DJ, 02/07/23: Add a decision var to the program to avoid error.
+        [prog,~] = sossosvar(prog,1);
+    end
     prog = sosineq(prog,dpvar(P));
 	[prog,info] = sossolve(prog,options); %AP edit to pass solver.
 	
@@ -294,9 +295,14 @@ else
 			Den = [];
         end
 		return;
-	else
-		Q = reshape(prog.solinfo.RRx,sqrt(length(prog.solinfo.RRx)),sqrt(length(prog.solinfo.RRx)));
-		if isa(P,'sym');
+    else
+        if isempty(P.degmat)
+            % DJ, 02/07/23: Remove the added decision variable.
+            Q = reshape(prog.solinfo.RRx(2:end),sqrt(length(prog.solinfo.RRx)-1),sqrt(length(prog.solinfo.RRx)-1));
+        else
+		    Q = reshape(prog.solinfo.RRx,sqrt(length(prog.solinfo.RRx)),sqrt(length(prog.solinfo.RRx)));
+        end
+		if isa(P,'sym')
 			Z = mysympower(vars,prog.extravar.Z{1});
 		else
 			pvar Z
