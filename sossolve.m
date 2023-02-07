@@ -78,6 +78,7 @@ function [sos,info] = sossolve(sos,options)
 % 08/14/2022 - DJ - Add check "phasevalue==pUNBD" and "==dUNBD" for sdpa.
 % 09/03/2022 - DJ - Add check K.q==0 and K.r==0 in call to sdpa.
 % 12/15/2022 - DJ - Remove 0x0 decision variables after psimplify.
+% 02/07/2023 - DJ - Bugfix "addextrasosvar" for matrix-valued polynomials
 
 if (nargin==1)
     %Default options from old sossolve
@@ -768,11 +769,11 @@ if ~isfield(sos,'symvartable')
                 Atnew(:,indx_new) = sos.expr.At{i}(:,indx_old)*R1;  % Adjust At to match new monomials
                 
                 % What coefficients of S are associated to element j?
-                [rindx,cindx] = ind2sub([Fdim,Fdim],j); % Matrix element k,l
-                Crindx = rindx + Fdim*(0:1:nmons_Z-1);  % Row indices of associated coefficients of S
-                Ccindx = cindx + Fdim*(0:1:nmons_Z-1);  % Col indices of associated coefficients of S
+                [rindx,cindx] = ind2sub([Fdim,Fdim],j);     % Matrix element k,l
+                Crindx = (rindx-1)*nmons_Z + (1:nmons_Z);   % Row indices of associated coefficients of S
+                Ccindx = (cindx-1)*nmons_Z + (1:nmons_Z);   % Col indices of associated coefficients of S
                 Cindx = reshape(Crindx' + Fdim*nmons_Z*(Ccindx-1),[],1); % Linear indices of coefficients
-                
+
                 % Pair each monomial with the appropriate coefficient
                 rindx = sos.extravar.idx{var} + Cindx - 1;  % Rows in At associated to coefficients of S
                 cindx = (j-1)*nmons_new + Zindx;            % Columns in At associated to coefficients of S
@@ -785,8 +786,7 @@ if ~isfield(sos,'symvartable')
             sos.expr.At{i} = Atnew;     % Update the values of At and b
             sos.expr.b{i} = bnew;
    
-        end
-            
+        end     
     end
         
 else
