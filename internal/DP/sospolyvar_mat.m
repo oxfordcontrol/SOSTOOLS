@@ -62,11 +62,16 @@ function [sos,P] = sospolyvar_mat(sos,ZSym,dims,matrixstr,wscoeff)
 % -MP 6/27/2021: updated to dpvar output only. Disabled use of symbolic variables.
 % Also, removed for-loop in both coefficient name declaration and degmat matrix declaration
 % DJ, 07/25/21: Small adjustment to fix issue with ndim=1 case
+% DJ, 02/07/23: Bugfix when scalar value "dims" is provided.
 
 if nargin<3
     mdim=1;ndim=1;
 else
-    mdim=dims(1); ndim=dims(2);
+    if length(dims)==1  % DJ, 02/07/23
+        mdim = dims;    ndim = dims;
+    else
+        mdim=dims(1);   ndim=dims(2);
+    end
 end
 symtoggle=0;
 if nargin==4
@@ -172,7 +177,7 @@ end
 varname=ZSym.varname;
 degmat=ZSym.degmat;
 dvarname=dvars_new;
-P = dpvar(C,degmat,varname,dvarname,dims);
+P = dpvar(C,degmat,varname,dvarname,[mdim,ndim]);
 
 if nargin > 4 & strcmp(wscoeff,'wscoeff')
     var = sos.var.num;
