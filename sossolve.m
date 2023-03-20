@@ -78,20 +78,46 @@ function [sos,info] = sossolve(sos,options)
 % 08/14/2022 - DJ - Add check "phasevalue==pUNBD" and "==dUNBD" for sdpa.
 % 09/03/2022 - DJ - Add check K.q==0 and K.r==0 in call to sdpa.
 % 12/15/2022 - DJ - Remove 0x0 decision variables after psimplify.
-% 02/07/2023 - DJ - Bugfix "addextrasosvar" for matrix-valued polynomials
+% 02/07/2023 - DJ - Bugfix "addextrasosvar" for matrix-valued polynomials.
+% 03/20/2023 - DJ - Add check for existence of solver on path.
 
 if (nargin==1)
     %Default options from old sossolve
-    options.solver = 'sedumi';
+    options.solver = 'none';
     options.params.tol = 1e-9;
     options.params.alg = 2;
-elseif ((nargin==2) & ~isnumeric('options') )%2 arguments given,
+elseif ((nargin==2) && ~isnumeric('options') )%2 arguments given,
     if ~isfield(options,'solver')
-        options.solver = 'sedumi';
+        options.solver = 'none';
     end
     if ~isfield(options,'params')
         options.params.tol = 1e-9;%default values for SeDuMi
         options.params.alg = 2;
+    end
+end
+
+% Check if solver is appropriately specified.
+solver_list = {'sedumi'; 'mosek'; 'sdpt3'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpa'; 'cdcs'};
+path_list = {'sedumi'; 'mosekopt'; 'sqlp'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpam'; 'cdcs'};
+if strcmp(options.solver,'none')
+    % If no solver is specified, default to first one found on path.
+    for k=1:length(solver_list)
+        if exist(path_list{k},'file')
+            options.solver = solver_list{k};
+            break
+        end
+    end
+    if strcmp(options.solver,'none')
+        error('No SDP solver detected. Please make sure the desired solver is on the Matlab path.')
+    end
+else
+    % Otherwise, check that the desired solver is indeed on Matlab path.
+    [is_solver,solver_num] = ismember(options.solver,solver_list);
+    if ~is_solver
+        error(['The desired SDP solver ''',options.solver,''' is not supported by SOSTOOLS. Please pass one of: ',...
+                '''sedumi'', ''mosek'', ''sdpt3'', ''csdp'', ''sdpnal'', ''sdpnalplus'', ''sdpa'', ''cdcs''.'])
+    elseif ~exist(path_list{solver_num},'file')
+        error(['The desired SDP solver ''',solver_list{solver_num},''' could not be found. Please make sure the function ''',path_list{solver_num},''' is on the Matlab path.'])
     end
 end
 
