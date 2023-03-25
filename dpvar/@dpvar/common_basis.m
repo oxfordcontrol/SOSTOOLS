@@ -33,6 +33,14 @@ function [Enew, Fnew] = common_basis(E,F)
 %
 % Initial coding DJ, MP, SS - 07/07/2021
 
+% Check that the inputs have the correct types.
+if ~isa(E, 'dpvar')
+    error('E must be a dpvar but instead was a %s', class(E))
+end
+if ~isa(F, 'dpvar')
+    error('F must be a dpvar but instead was a %s', class(F))
+end
+
 
 % Check the density of the coefficient matrices
 dnstyE = nnz(E.C)/(size(E.C,1)*size(E.C,2));
