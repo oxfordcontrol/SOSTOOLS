@@ -1,6 +1,6 @@
 function [Enew, Fnew] = common_basis(E,F)
-% [Enew,Fnew] = DPcommon_basis(E,F) extends the coeffs of E and F to have
-% same left and right bases
+% [Enew,Fnew] = common_basis(E,F) extends the coeffs of E and F to have
+% same left and right bases.
 % 
 % INPUTS:
 % E,F : dpvar class objects
@@ -32,6 +32,11 @@ function [Enew, Fnew] = common_basis(E,F)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Initial coding DJ, MP, SS - 07/07/2021
+
+% Check that the inputs have the correct types.
+if ~isa(E, 'dpvar') || ~isa(F,'dpvar')
+    error('Both input arguments must be of type ''dpvar''.')
+end
 
 
 % Check the density of the coefficient matrices
