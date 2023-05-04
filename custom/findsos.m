@@ -71,7 +71,11 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 %                Also allow rational expansion in non-integer case.
 % 09/03/22 - DJ: Initialize empty output fields if nargout>=3.
 % 02/07/23 - DJ: Bugfix case where P has constant elements (on diagonal).
+% 05/04/23 - DJ: Allow slightly negative eigenvalues in 'rational' case.
 
+% Set tolerance for positivity of eigenvalues of Qr in rational case.
+pos_tol_1 = -1e-14; % If min(eig(Qr)) <= pos_tol_1, return Qr with warning
+pos_tol_2 = -1e-10; % If min(eig(Qr)) <= pos_tol_2, just return Q
 
 if nargin == 2
     if ~strcmp(flag,'rational')
@@ -185,7 +189,7 @@ if isa(P,'sym')
                 n = sqrt(length(Qflat));
                 Qr = reshape(Qflat,n,n);
                 % Qr should be PSD (should really check symbolically)
-                if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
+                if min(eig(Qr/NN))>pos_tol_1 ; kmax=0 ; pd = 1 ; end
                 % Increase N, and try again
                 N = 2*N;
             catch
@@ -194,14 +198,23 @@ if isa(P,'sym')
                 Qr = reshape(xx,n,n);
                 break
             end
-		end
+        end
+        % If eigenvalues of Qr are negative but small, return rational
+        % decomposition with a warning.
+        if pd==0 && min(eig(Qr/NN))>=pos_tol_2    % DJ, 05/04/23
+            fprintf(2,['Warning: Returned matrix Q in decomposition Zd''*Q*Zd has negative eigenvalue ',num2str(min(eig(Qr/NN))),'.\n',...
+                       '         Rational decomposition may not be SOS.\n']);
+            pd = 1;
+        end
 		
 		% Experimental, no good error checking yet, so we check that
 		% expand(NN*P - Z.'*Qr*Z) is zero!
-		
-		if (expand(NN*P-Z.'*Qr*Z) ~= 0) | (pd == 0);
-			Qr = []; Z = []; NN = [];
-			disp('Could not compute a rational SOS!');
+		if (expand(NN*P-Z.'*Qr*Z) ~= 0) || (pd == 0)
+% 			Qr = []; Z = []; NN = [];
+% 			disp('Could not compute a rational SOS!');
+            fprintf(2,['Warning: Could not compute a rational SOS decomposition;',...
+                       ' returning real-valued decomposition instead.\n']);
+            Qr = Q; NN = 1;
 		end
 		
 		if nargout == 4
@@ -327,7 +340,7 @@ else
                 n = sqrt(length(Qflat));
                 Qr = reshape(Qflat,n,n);
                 % Qr should be PSD (should really check symbolically)
-                if min(eig(Qr/NN))>-1e-14 ; kmax=0 ; pd = 1 ; end
+                if min(eig(Qr/NN))>pos_tol_1 ; kmax=0 ; pd = 1 ; end
                 % Increase N, and try again
                 N = 2*N;
             catch
@@ -336,16 +349,26 @@ else
                 Qr = reshape(xx,n,n);
                 break
             end
-		end
+        end
+
+        % If eigenvalues of Qr are negative but small, return rational
+        % decomposition with a warning.
+        if pd==0 && min(eig(Qr/NN))>=pos_tol_2    % DJ, 05/04/23
+            fprintf(2,['Warning: Returned matrix Q in decomposition Zd''*Q*Zd has negative eigenvalue ',num2str(min(eig(Qr/NN))),'.\n',...
+                       '         Rational decomposition may not be SOS.\n']);
+            pd = 1;
+        end
 		
 		% Experimental, no good error checking yet, so we check that
 		% expand(NN*P - Z.'*Qr*Z) is zero!
 		err = NN*P-Z.'*Qr*Z;
 		if (isa(err,'polynomial') && max(max(abs(err.coeff)))>=1e-14) ...
                 || (isa(err,'double') && ~all(err==0)) || (pd == 0)  % DJ, 08/14/22: remove call to "expand"
-            % shouldn't we return the non-rational expansion?
-			Qr=[];Z=[];NN=[];
-			disp('Could not compute a rational SOS!');
+% 			Qr=[];Z=[];NN=[];
+% 			disp('Could not compute a rational SOS!');
+            fprintf(2,['Warning: Could not compute a rational SOS decomposition;',...
+                       ' returning real-valued decomposition instead.\n']);
+            Qr = Q; NN = 1;
 		end
 		
 		if nargout == 4
