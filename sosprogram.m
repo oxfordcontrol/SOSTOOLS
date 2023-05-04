@@ -52,6 +52,7 @@ function sos = sosprogram(vartable,decvartable)
 % 10/10/02 - SP -- Path checking
 % 12/15/21 - DJ -- Correction for 'sos.var.idx{1}' specification in dpvar case
 % 02/09/22 - DJ -- Add check for mosek solver
+% 05/04/23 - DJ -- Convert 'decvartable' to row vector in 'sym' case.
 
 if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs') & ~exist('mosekopt')
     error('No SDP solvers found.') ;
@@ -94,6 +95,7 @@ if isa(vartable,'sym')
     sos.solinfo.RRy = [];
     sos.solinfo.info = [];
     
+    assume(vartable,'real');    % DJ - 05/04/23
     if ~isrow(vartable) %AP 30092020
         vartable = vartable.';
     end
@@ -110,9 +112,14 @@ if isa(vartable,'sym')
     
     
     if (nargin == 2 && ~isempty(decvartable))
+        assume(decvartable,'real');     % DJ - 05/04/23
+        if ~isrow(decvartable)
+            decvartable = decvartable.';
+        end
+
         sos.objective = sparse(length(decvartable),1);
         sos.decvartable = sym2chartable(decvartable);     % 03/01/02
-        setofCommaBrackets = [1 strfind(sos.decvartable,',') strfind(sos.decvartable,']')];%26/04/13
+%        setofCommaBrackets = [1 strfind(sos.decvartable,',') strfind(sos.decvartable,']')];%26/04/13
         
         if size(decvartable,2) > 1
             decvartable = decvartable.';%the transpose of a matrix of decision varibles
