@@ -41,6 +41,11 @@ function J = diff(obj,vars)
 if nargin == 1
     vars = obj.varname;
 end
+% Check for empty object.
+if any(size(obj.C)==0)
+    J = obj;
+    return
+end
 
 % Convert x to a cell array of strings
 if ispvar(vars)
