@@ -57,8 +57,15 @@ function prob = Sedumi2Mosek(A,b,c,K)
 % A Sedumi to Mosek converter
 % changed sparse construction for faster conversion, SS - 7/20/2021
 
-if isfield(K,'q')
+if (isfield(K,'q') && any(K.q>0)) || (isfield(K,'r') && any(K.r>0))
     error('K.q and K.r are supposed to be empty')
+else
+    if isfield(K,'q')
+        K.q = rmfield(K,'q');
+    end
+    if isfield(K,'r')
+        K.r = rmfield(K,'r');
+    end
 end
 
 if ~isfield(K,'f')
