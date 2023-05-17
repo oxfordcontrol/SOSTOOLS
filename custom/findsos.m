@@ -189,7 +189,7 @@ if isa(P,'sym')
                 n = sqrt(length(Qflat));
                 Qr = reshape(Qflat,n,n);
                 % Qr should be PSD (should really check symbolically)
-                if min(eig(Qr/NN))>pos_tol_1 ; kmax=0 ; pd = 1 ; end
+                if min(eig(Qr/NN))>=pos_tol_2 ; kmax=0 ; pd = 1 ; end
                 % Increase N, and try again
                 N = 2*N;
             catch
@@ -201,10 +201,9 @@ if isa(P,'sym')
         end
         % If eigenvalues of Qr are negative but small, return rational
         % decomposition with a warning.
-        if pd==0 && min(eig(Qr/NN))>=pos_tol_2    % DJ, 05/04/23
+        if pd==1 && min(eig(Qr/NN))<pos_tol_1    % DJ, 05/04/23
             fprintf(2,['Warning: Returned matrix Q in decomposition Zd''*Q*Zd has negative eigenvalue ',num2str(min(eig(Qr/NN))),'.\n',...
                        '         Rational decomposition may not be SOS.\n']);
-            pd = 1;
         end
 		
 		% Experimental, no good error checking yet, so we check that
@@ -340,7 +339,7 @@ else
                 n = sqrt(length(Qflat));
                 Qr = reshape(Qflat,n,n);
                 % Qr should be PSD (should really check symbolically)
-                if min(eig(Qr/NN))>pos_tol_1 ; kmax=0 ; pd = 1 ; end
+                if min(eig(Qr/NN))>=pos_tol_2 ; kmax=0 ; pd = 1 ; end
                 % Increase N, and try again
                 N = 2*N;
             catch
@@ -353,10 +352,9 @@ else
 
         % If eigenvalues of Qr are negative but small, return rational
         % decomposition with a warning.
-        if pd==0 && min(eig(Qr/NN))>=pos_tol_2    % DJ, 05/04/23
+        if pd==1 && min(eig(Qr/NN))<pos_tol_1    % DJ, 05/04/23
             fprintf(2,['Warning: Returned matrix Q in decomposition Zd''*Q*Zd has negative eigenvalue ',num2str(min(eig(Qr/NN))),'.\n',...
                        '         Rational decomposition may not be SOS.\n']);
-            pd = 1;
         end
 		
 		% Experimental, no good error checking yet, so we check that
