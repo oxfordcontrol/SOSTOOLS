@@ -237,6 +237,9 @@ elseif isfield(options,'frlib')
     c = prg_primal.c';
     K = prg_primal.K;
     size_AT_solved = size(At);
+
+    fprintf('Old A size: %d  %d\n', size_At_full);
+    fprintf('New A size: %d  %d\n', size_AT_solved);
     
     if size(At,2)~=length(b) | length(b) > length(c)
         error('Error simplifying the problem, it may be infeasible. Try running without ''frlib''.')
