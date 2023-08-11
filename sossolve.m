@@ -304,18 +304,23 @@ elseif strcmp(lower(options.solver),'mosek')
     info.cpusec = res.info.MSK_DINF_OPTIMIZER_TIME; %OK
     info.iter = res.info.MSK_IINF_INTPNT_ITER;   %OK
     info.feasratio = res.info.MSK_DINF_INTPNT_OPT_STATUS;
-    if strcmp(res.sol.itr.prosta,'DUAL_INFEASIBLE')
+    if contains(res.sol.itr.prosta,'INFEASIBLE') && contains(res.sol.itr.prosta,'DUAL')
         info.dinf = 1;
     else
         info.dinf = 0;
     end
-    if strcmp(res.sol.itr.prosta,'PRIM_INFEASIBLE')
+    if contains(res.sol.itr.prosta,'INFEASIBLE') && contains(res.sol.itr.prosta,'PRIM')
         info.pinf = 1;
     else
         info.pinf = 0;
     end
-    
-    info.numerr = 0;
+    if contains(res.sol.itr.prosta,'UNKNOWN')
+        info.numerr = 2;
+    elseif contains(res.sol.itr.solsta,'UNKNOWN')
+        info.numerr = 1;
+    else
+        info.numerr = 0;
+    end
 elseif strcmp(lower(options.solver),'cdcs')
     % CDCS in action
     size_At = size(At);
