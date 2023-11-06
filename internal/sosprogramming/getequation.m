@@ -70,10 +70,10 @@ if isa(symexpr,'dpvar')
     cvartable_prog = char(vartable);
     cdvartable_prog = char(decvartable);
     dvarname = symexpr.dvarname;
-    if isempty(dvarname)
-        error(['Direct constraints on independent variables are not supported.',...
-                ' Please make sure your constraint involves at least one decision variable.'])
-    end
+%     if isempty(dvarname)
+%         error(['Direct constraints on independent variables are not supported.',...
+%                 ' Please make sure your constraint involves at least one decision variable.'])
+%     end
     varname = symexpr.varname;
     %    cdvarname=char(symexpr.dvarname);
     %    cvarname=char(symexpr.varname);
