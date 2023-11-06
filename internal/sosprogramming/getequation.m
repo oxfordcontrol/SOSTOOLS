@@ -221,10 +221,10 @@ elseif isa(symexpr,'polynomial')
     end
     b = sparse(coeffnts);
 
-    if isempty(At) || ~any(any(At))
-        error(['Direct constraints on independent variables are not supported.',...
-                ' Please make sure your constraint involves at least one decision variable.'])
-    end
+%     if isempty(At) || ~any(any(At))
+%         error(['Direct constraints on independent variables are not supported.',...
+%                 ' Please make sure your constraint involves at least one decision variable.'])
+%     end
 
 else
     % PJS: Original Code to Handle Symbolic Objects
@@ -355,10 +355,10 @@ else
             At(:,(i-1)*dimp^2+1:i*dimp^2) = sparse(-double(jacobian(Mivec,decvartable))');
         end
     end
-    if isempty(At) || ~any(any(At))
-        error(['Direct constraints on independent variables are not supported.',...
-                ' Please make sure your constraint involves at least one decision variable.'])
-    end
+%     if isempty(At) || ~any(any(At))
+%         error(['Direct constraints on independent variables are not supported.',...
+%                 ' Please make sure your constraint involves at least one decision variable.'])
+%     end
     
     %b = sparse(coeffnts);
     b = coeffnts;
