@@ -20,11 +20,13 @@ function b = power(a,n)
 
 % 6/7/2002 PJS  Initial Coding
 % 12/12/2010 PJS Call matrix.^matrix code for scalar expansion cases
+% 01/23/2024 DJ  Add support for matrix.^vector and vector.^matrix cases
 
 % Check number of inputs
 error(nargchk(2,2,nargin));
 sza=size(a);
 szn=size(n);
+
 
 if isempty(a) || isempty(n)
     if isempty(a) && all(szn==[1 1])
@@ -86,6 +88,28 @@ elseif sza==szn
     %             end
     %         end
     %     end
+elseif sza(1)==szn(1) && (sza(2)==1 || szn(2)==1)
+    % Only number of rows matches:
+    if sza(2)==1
+        % Vector.^Matrix
+        a = repmat(a,[1,szn(2)]);
+        b = power(a,n);
+    else
+        % Matrix.^Vector
+        n = repmat(n,[1,sza(2)]);
+        b = power(a,n);
+    end
+elseif sza(2)==szn(2) && (sza(1)==1 || szn(1)==1)
+    % Only number of columns matches:
+    if sza(1)==1
+        % Vector.^Matrix
+        a = repmat(a,[szn(1),1]);
+        b = power(a,n);
+    else
+        % Matrix.^Vector
+        n = repmat(n,[sza(1),1]);
+        b = power(a,n);
+    end
 elseif all(szn==[1 1])
     % Matrix.^Scalar:
     n = repmat(n,sza);
