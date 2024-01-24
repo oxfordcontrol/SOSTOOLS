@@ -123,31 +123,35 @@ end
 
 
 % AT (09/25/2021) Default options for sospsimplify
-if isfield(options,'simplify') 
-    if (strcmp(options.simplify,'on') | (options.simplify == 1) | strcmp(lower(options.simplify),'1') | strcmp(options.simplify,'turn on') | strcmp(options.simplify,'simplify'))
-        options.simplify = 1;
-    elseif (strcmp(options.simplify,'off') | (options.simplify == 0) | strcmp(lower(options.simplify),'0') | strcmp(options.simplify,'turn off'))   % DJ, 12/10/2021
-        options.simplify = 0;
+if isfield(options,'simplify')
+    if (ischar(options.simplify) && (strcmpi(options.simplify,'on') || strcmpi(options.simplify,'true') || strcmpi(options.simplify,'1') || strcmpi(options.simplify,'simplify'))) ...
+            || (islogical(options.simplify) && options.simplify) ...
+                || (isnumeric(options.simplify) && options.simplify == 1)
+        options.simplify = true;
+    elseif (ischar(options.simplify) && (strcmpi(options.simplify,'off') || strcmpi(options.simplify,'false') || strcmpi(options.simplify,'0'))) ...
+            || (islogical(options.simplify) && ~options.simplify) ...
+                || (isnumeric(options.simplify) && options.simplify == 0)
+        options.simplify = false;
     else
-        warning("options.simplify should be one of the options 'on', 1, 'simplify', 'off', '0'");
+        warning("options.simplify should be set to either true or false");
         warning("Set simplify off by default");
         
         % sospsimplify is disabled if the user used an unapproved input
-        options.simplify = 0;
+        options.simplify = false;
     end
 else
     % sospsimplify off by default
-    options.simplify = 0;
+    options.simplify = false;
 end
 
 %whenever nargin>=2 options are overwritten
 if (nargin==3)
     error('Current SOSTOOLS version does not support call to sossolve with 3 arguments, see manual.');
-end;
+end
 
 if ~isempty(sos.solinfo.x)
     error('The SOS program is already solved.');
-end;
+end
 
 % Adding slack variables to inequalities
 sos.extravar.idx{1} = sos.var.idx{sos.var.num+1};
@@ -156,12 +160,12 @@ feasextrasos = 1;   % Will be set to 0 if constraints are immediately found infe
 I = [find(strcmp(sos.expr.type,'ineq')), find(strcmp(sos.expr.type,'sparse')), find(strcmp(sos.expr.type,'sparsemultipartite'))];
 if ~isempty(I)
     [sos,feasextrasos] = addextrasosvar(sos,I);
-end;
+end
 % SOS variables type II (restricted on interval)
 I = find(strcmp(sos.expr.type,'posint'));
 if ~isempty(I)
     sos = addextrasosvar2(sos,I);
-end;
+end
 
 % Processing all expressions
 
@@ -179,7 +183,7 @@ end;
 c = sparse(size(At,1),1);
 
 %% Added by PAP, for compatibility with MATLAB 6.5
-if isempty(sos.objective);
+if isempty(sos.objective)
     sos.objective = zeros(size(c(1:sos.var.idx{end}-1)));
 end
 %% End added stuff
@@ -188,12 +192,22 @@ c(1:sos.var.idx{end}-1) = c(1:sos.var.idx{end}-1) + sos.objective;       % 01/07
 c = RR'*c;
 
 pars = options.params;
+% Set tolerance for psimplify
+if isfield(options,'simplify_tol')    
+    ptol = options.simplify_tol;
+else
+    ptol = max(pars.tol*1e-3,1e-12);         
+end
 
 % AT - created interface to sospsimplify
 feassosp = 1; %09/25/21 the default value, it is used for sospsimplify
-if options.simplify==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(options.simplify),'1')  | strcmp(lower(options.simplify),'simplify'))
+if options.simplify
 
     fprintf('Running simplification process:\n')
+    if isfield(options,'frlib')
+        disp('Warning: SOSTOOLS does not support use of both "psimplify" and "frlib" to simplify program; proceeding with only "psimplify".')
+    end
+
     At_full = At';   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
     b_full = b;     K_full = K;
     size_At_full = size(At_full);
@@ -202,22 +216,18 @@ if options.simplify==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(op
     dv2x = 1:size_At_full(2);
     K_full.l = 0;
 
+    Zmonom = cell(1,Nsosvarc);
     for i= 1:Nsosvarc
         Zmonom{i} = (1:K.s(i))';
     end
-    if ~isfield(pars,'tol')   % DJ, 12/10/2021
-        ptol = 1e-9;
-    else
-        ptol = pars.tol;
-    end
     %A,b,K -reduced matrices
-    [A,b,K,z,dv2x,Nfv,feassosp,zrem,removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc, ptol);
+    [A,b,K,~,dv2x,~,feassosp,~,removed_rows] = sospsimplify(At_full,b_full,K_full,Zmonom, dv2x,Nsosvarc, ptol);
 
     fprintf('Old A size: %d  %d\n', size(At));
     fprintf('New A size: %d  %d\n', size(A'));
     % 	[prg_primal] = frlib_pre(options.frlib,At',b,c,K); %interface with frlib
     At = A';  %reduced SDP matrices
-    b = b;
+    %b = b;
     chosen_idx = (dv2x ~= 0);
     c = c(chosen_idx);
     K.s(K.s==0) = [];   % Get rid of 0x0 variables, DJ - 12/15/22
@@ -225,7 +235,8 @@ if options.simplify==1 | (strcmp(lower(options.simplify),'on') | strcmp(lower(op
     %if size(At,2)~=length(b) | length(b) > length(c)
     %    error('Error simplifying the problem, it may be infeasible. Try running without ''simplify''.')
     %end
-    %perform facial reduction using FP's algorithm (JA 5/1/16)
+
+% Perform facial reduction using FP's algorithm (JA 5/1/16)
 elseif isfield(options,'frlib')
     At_full = At;   c_full = c; %Need duplicate copy if applying facial reduction as reduced matrices overwrite these
     b_full = b;     K_full = K;
@@ -246,6 +257,11 @@ elseif isfield(options,'frlib')
     end
 else
     size_At_full = size(At);
+end
+
+% Check for trivially infeasible constraints b=0 with nonzero b             % DJ, 08/12/23
+if feassosp && any((sum(abs(At)>ptol,1)==0)' & (abs(b)>ptol*max(abs(b))))
+    feassosp=0;
 end
 
 % AT - 9/28/2021

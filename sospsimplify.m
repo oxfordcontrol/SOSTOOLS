@@ -6,15 +6,15 @@ function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,
 % b - a constraint vector that needs to be simplified (A*x = b)
 % K - describe the PSD cone in the Sedumi format
 % z - vector of monomials
-% dv2x - map between Sedumi variable and A matrix
+% dv2x - map between Sedumi variable and A matrix (x(dv2x(i)) = dv(i))
 % Nsosvarc - Number of PD constraints
 % tol - desired tolerance for the simplification procedure
 %
 % OUTPUT
 % A - simplified matrix A
 % b - simplified vector b
-% K - simplofied K
-% dv2x - map reduced between environment variables and monomials
+% K - simplified K
+% dv2x - reduced map  between environment variables and monomials
 % Nfv  - the number of free variables
 % feas - 0 if the problem is clearly infeasible, 1 otherwise
 % zrem - removed monomials
@@ -82,6 +82,9 @@ function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,
 %             Change all element-wise operations to 'spfun' for sparse matrix
 % 01/30/23 DJ Comment out lines that do not contribute in
 %               LOCALxsignupdate(xsignOld,A,b, tol)
+% 08/13/23 DJ Bugfixes:
+%               Reintroduce tolerance in LOCALxsignupdate(xsign,A,b, tol);
+%               Correct indices in updating sign of variables;
 
 
 %--------------------------------------------------------------------
@@ -140,16 +143,15 @@ while (go == 1)
 %         if lz <15
 %             continue
 %         end
-        blkidx = ptr+(1:lz^2);
-        Qsign = diag(mat(xsign(blkidx)));
-        loc = find(abs(Qsign)< tol);        
+        diagidx = (0:lz-1)*lz+(1:lz);
+        Qsign = xsign(ptr+diagidx);
+        loc = find(abs(Qsign)< tol);
         if ~isempty(loc)
             % Corresponding rows/cols of zero diag entries are also zero
             tmp = sparse(lz,lz);
             tmp(loc,:) = 1;
             tmp(:,loc) = 1;
-            rmidx = find(tmp)+ptr;
-            xsign(rmidx) = 0;    
+            rmidx = find(tmp)+ptr;  
             
             % Remove vars/monoms associated with zero Gram matrix entries
             A(:,rmidx) = [];
@@ -164,7 +166,7 @@ while (go == 1)
                 K.s(i1) = length( z{i1} );
             end
             
-%             Update the mapping of dec vars into the optimization vars
+            % Update the mapping of dec vars into the optimization vars
             if i1<=Nsosvarc
                 % Number of optim vars to remove
                 Nremove = length(rmidx);
@@ -178,13 +180,11 @@ while (go == 1)
                 % Relabel the remaining dec vars in this block
                 % AT 09/10/2021 sostools uses all variable and not just a
                 % low triangle part like sosp
-                
-                idx = find( ones(K.s(i1)) );                            
-                dv2x( ismember(dv2x,blkidx) ) = ptr+idx;
+                dv2x( ismember(dv2x,blkidx) ) = ptr + (1:K.s(i1)^2)';
                                 
                 % Relabel remaining dec vars in subsequent blocks
-                idx = find( dv2x>blkidx(end) );
-                dv2x(idx) = dv2x(idx) - Nremove;                                               
+                idx = (dv2x>blkidx(end));
+                dv2x(idx) = dv2x(idx) - Nremove;   
             end        
         end
         
@@ -194,7 +194,7 @@ while (go == 1)
 
     % Continue if xsign has been updated
     go = ~isequalwithequalnans(xsign,xsignprev);
-    xsignprev = xsign;    
+    xsignprev = xsign;
 end
 
 %--------------------------------------------------------------------
@@ -203,11 +203,12 @@ end
 
 % Mark removed free decision vars
 rmidx = find( abs(xsign(1:K.f))< tol );
-dv2x( ismember(dv2x,rmidx) ) = 0;
-idx = find(dv2x<=K.f & dv2x>0);
-A(:,rmidx) = [];
-xsign(rmidx) = [];
 Nremf = length(rmidx);
+A(:,rmidx) = [];
+%xsign(rmidx) = [];
+dv2x( ismember(dv2x,rmidx) ) = 0;
+
+idx = (dv2x<=K.f & dv2x>0);
 K.f = K.f - Nremf;  
 Nfv = K.f;
 dv2x(idx) = 1:Nfv;
@@ -215,25 +216,22 @@ dv2x(idx) = 1:Nfv;
 idx2 = find(dv2x>K.f & dv2x>0);
 dv2x(idx2) = dv2x(idx2)-Nremf;
 
-% Remove any constraints of the form 0=0 
-ridx = find( sum(abs(A)>tol,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
+% Remove any constraints of the form 0=0  (up to tolerance)
+ridx = ( sum(abs(A)>tol,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
 A(ridx,:) = [];
+b(ridx) = [];
 
 % just a new output
-removed_rows = ridx;
-b(ridx) = [];
+removed_rows = find(ridx);
+
 
 % Check for infeasible problems of the form 0 = bi where bi is not equal 
 % to zero (Our simplify code should flag infeasible problems because
 % Sedumi can error out on problems that are trivially infeasible)
-if isempty(A)
-    feas = 1;
-    return    
-else
-    ridx = find( sum(abs(A)>tol,2)==0 & abs(b)>tol*max(abs(b)) );
-end
 feas = 1;
-if ~isempty(ridx)
+if isempty(A)
+    return    
+elseif any(sum(abs(A)>tol,2)==0 & abs(b)>tol*max(abs(b)) )
     feas = 0;
 end
 
@@ -250,23 +248,29 @@ end
 % Local function to update sign of optimization var 
 %--------------------------------------------------------------------
 function xsign = LOCALxsignupdate(xsignOld,A,b, tol)
-% AT: change a lot of elementwise operations to 
-%     spfun(@function, sparse matrix)
-% The tolerance is used for sign function 
-% Now the sign function is used without tolerance
+% % AT: change a lot of elementwise operations to 
+% %     spfun(@function, sparse matrix)
+% % The tolerance is used for sign function 
+% % Now the sign function is used without tolerance
+% % DJ, 08/13/23: Reintroduce tolerance in searching for "ridx"
+% %                 Note that values in A and b with magnitude smaller than
+% %                 tol will be interpreted as zero...
+
 % Initialize output
 xsign = xsignOld;
 
 % Process constraints of the form:  aij*xj = bi
-ridx = find(  sum(spones(A), 2)==1  );
+%ridx = find(  sum(spones(A), 2)==1  );
+ridx = find(sum(abs(A)>tol,2)==1);          % DJ, 08/13/23
 if ~isempty(ridx)
-    [cidx,~]=find( A(ridx,:)' );
-%    idx = sub2ind(size(A),ridx,cidx);      % DJ, 01/30/2023
+    [cidx,~]=find( abs(A(ridx,:)')>tol );
+    %[cidx,~]=find( abs(A(ridx,:)')>0 );
+    idx = sub2ind(size(A),ridx,cidx);      % DJ, 01/30/2023
     % change element wise operation for sparse matrix.
-%    signA = spfun(@sign, A(idx) );
+    signA = spfun(@sign, A(idx) );
     signb = spfun(@sign, b(ridx) );    
-%    xsignUpdate = signA.*signb;
-    xsignUpdate =  signb;
+    xsignUpdate = signA.*signb;
+%    xsignUpdate =  signb;
  
 %     % XXX PJS 12/07/09: If cidx = [2;2] and xsignUpdate = [1; NaN] then 
 %     % the next line will replace xsign(2) with NaN because the last index 
@@ -280,55 +284,79 @@ if ~isempty(ridx)
 % %         xsign(cidx(i1)) = LOCALupdate(xsign(cidx(i1)),xsignUpdate(i1));
 % %     end
 
-    xsign(cidx) = LOCALupdate(xsign(cidx),xsignUpdate);
+    % Check for unique rows of xsign to update.
+    cxU = uniquerows_integerTable([cidx,xsignUpdate]);      % DJ, 08/13/23
+    zidx = cxU(:,2)==0;
+    pidx = cxU(:,2)>=0.5;
+    nidx = cxU(:,2)<=-0.5;
+    
+    % Update the sign of the specified rows.
+    xsign(cxU(zidx,1)) = 0;
+    xsign(cxU(pidx,1)) = LOCALupdate(xsign(cxU(pidx,1)),cxU(pidx,2));
+    xsign(cxU(nidx,1)) = LOCALupdate(xsign(cxU(nidx,1)),cxU(nidx,2));
 end
 % 
 % % Process constraints of the form:  aij*xj + aik*xk = bi
-ridx = find(  sum(spones(A), 2) == 2  );
+ridx = find(sum(abs(A)>tol,2)==2);          % DJ, 08/13/23
 if ~isempty(ridx)
-    [cidx, tmp] = find( A(ridx,:)'  ); %remove tolerance, AT 10-15-21
+%    [cidx, tmp] = find( A(ridx,:)'  ); %remove tolerance, AT 10-15-21
+    [cidx, ~] = find( abs(A(ridx,:)')>tol  ); % re-introduce tolerance, DJ
     cidx  = reshape(cidx,[2 length(ridx)])';
     cidx1 = cidx(:,1);
     idx1  = sub2ind(size(A),ridx,cidx1);
     cidx2 = cidx(:,2);
     idx2  = sub2ind(size(A),ridx,cidx2);
 
+    % Set sign of   xj = bi/aij - (aik/aij)*xk
     c1 = sign(b(ridx)./A(idx1));
     c2 = sign(-A(idx2)./A(idx1));
     xsignUpdate = NaN([length(ridx) 1]);
     xsignUpdate( c1<=0 & (c2.*xsign(cidx2)<=0) ) = -1;
     xsignUpdate( c1>=0 & (c2.*xsign(cidx2)>=0) ) = +1;
     
-    xsign(cidx1) = LOCALupdate(xsign(cidx1),xsignUpdate);
-    idx_update = ((xsignUpdate == 1) | (xsignUpdate == -1));
-    xsign(cidx1(idx_update)) = LOCALupdate(xsign(cidx1(idx_update)),xsignUpdate(idx_update));
-%     for i1 =1:length(cidx1)
-%         if ((xsignUpdate == 1) | (xsignUpdate == -1))
-%             xsign(cidx1(i1)) = LOCALupdate(xsign(cidx1(i1)),xsignUpdate(i1));
-%         end
-%     end
+    zidx = xsignUpdate==1  & xsignUpdate==-1;
+    pidx = xsignUpdate==1  & ~zidx;
+    nidx = xsignUpdate==-1 & ~zidx;
+
+    cxUz = uniquerows_integerTable([cidx1(zidx),xsignUpdate(zidx)]);
+    cxUp = uniquerows_integerTable([cidx1(pidx),xsignUpdate(pidx)]);
+    cxUn = uniquerows_integerTable([cidx1(nidx),xsignUpdate(nidx)]);
     
+    xsign(cxUz(:,1)) = 0;
+    xsign(cxUp(:,1)) = LOCALupdate(xsign(cxUp(:,1)),cxUp(:,2));
+    xsign(cxUn(:,1)) = LOCALupdate(xsign(cxUn(:,1)),cxUn(:,2));
+
+    
+    % Set sign of   xk = bi/aik - (aij/aik)*xj
     c1 = sign(b(ridx)./A(idx2));
     c2 = sign(-A(idx1)./A(idx2));
     xsignUpdate = NaN([length(ridx) 1]);
     xsignUpdate( c1<=0 & (c2.*xsign(cidx1)<=0) ) = -1;
     xsignUpdate( c1>=0 & (c2.*xsign(cidx1)>=0) ) = +1;
-    xsign(cidx2) = LOCALupdate(xsign(cidx2),xsignUpdate);
-    idx_update = ((xsignUpdate == 1) | (xsignUpdate == -1));
-    xsign(cidx1(idx_update)) = LOCALupdate(xsign(cidx1(idx_update)),xsignUpdate(idx_update));
-%     for i1 =1:length(cidx2)
-%         if ((xsignUpdate == 1) | (xsignUpdate == -1))
-%             xsign(cidx1(i1)) = LOCALupdate(xsign(cidx1(i1)),xsignUpdate(i1));
-%         end
-%     end        
+
+    zidx = xsignUpdate==1  & xsignUpdate==-1;
+    pidx = xsignUpdate==1  & ~zidx;
+    nidx = xsignUpdate==-1 & ~zidx;
+
+    cxUz = uniquerows_integerTable([cidx2(zidx),xsignUpdate(zidx)]);
+    cxUp = uniquerows_integerTable([cidx2(pidx),xsignUpdate(pidx)]);
+    cxUn = uniquerows_integerTable([cidx2(nidx),xsignUpdate(nidx)]);
+    
+    xsign(cxUz(:,1)) = 0;
+    xsign(cxUp(:,1)) = LOCALupdate(xsign(cxUp(:,1)),cxUp(:,2));
+    xsign(cxUn(:,1)) = LOCALupdate(xsign(cxUn(:,1)),cxUn(:,2));
+       
 end
 
 % % Process constraints of the form:  aij*xj + aik*xk + ail*xl= 0
 % % where aij*xj, aik*xk, ail*xl all have the same sign.  
 % % This implies that each of the three vars  = 0
-ridx = find(  sum(spones(A),2)==3 & spones(b) < tol );
+%ridx = find(  sum(spones(A),2)==3 & spones(b) < tol );
+ridx = find(sum(abs(A)>tol,2)==3 & abs(b)<tol);        % DJ, 08/13/23
+% Note that A and b sufficiently small will be interpreted as 0, which
+% may lead to false positives in solving...
 if ~isempty(ridx)
-    [cidx,tmp]=find( A(ridx,:)' );
+    [cidx,~]=find( abs(A(ridx,:)')>tol );
     cidx = reshape(cidx,[3 length(ridx)])';
     cidx1 = cidx(:,1);
     idx1 = sub2ind(size(A),ridx,cidx1);
@@ -340,32 +368,39 @@ if ~isempty(ridx)
     % All terms are non-neg
     rsign = (sign(A(idx1)).*xsign(cidx1)>=tol) & (sign(A(idx2)).*xsign(cidx2)>=tol) ...
                 & (sign(A(idx3)).*xsign(cidx3)>=tol);
-    idx = find(rsign==1);    
-    for i1=idx
-        xsign(cidx1(i1)) = 0;
-        xsign(cidx2(i1)) = 0;
-        xsign(cidx3(i1)) = 0;        
-    end
+%     idx = find(rsign==1);    
+%     for i1=idx
+%         xsign(cidx1(i1)) = 0;
+%         xsign(cidx2(i1)) = 0;
+%         xsign(cidx3(i1)) = 0;        
+%     end
+    xsign(cidx1(rsign)) = 0;
+    xsign(cidx2(rsign)) = 0;
+    xsign(cidx3(rsign)) = 0;
     
     % All terms are non-pos
     rsign = (sign(A(idx1)).*xsign(cidx1)<=-tol) & (sign(A(idx2)).*xsign(cidx2)<=-tol) ...
                 & (sign(A(idx3)).*xsign(cidx3)<=-tol);
-    idx = find(rsign==1);    
-    for i1=idx
-        xsign(cidx1(i1)) = 0;
-        xsign(cidx2(i1)) = 0;
-        xsign(cidx3(i1)) = 0;        
-    end
+%     idx = find(rsign==1);    
+%     for i1=idx
+%         xsign(cidx1(i1)) = 0;
+%         xsign(cidx2(i1)) = 0;
+%         xsign(cidx3(i1)) = 0;        
+%     end
+    xsign(cidx1(rsign)) = 0;
+    xsign(cidx2(rsign)) = 0;
+    xsign(cidx3(rsign)) = 0;
 end
+
 
 %--------------------------------------------------------------------
 % Local function to update sign of optimization var
 %--------------------------------------------------------------------
 function xsignNew = LOCALupdate(xsign,xsignUpdate) 
 % Find constraints that force ai=0, ai<0 and ai>0
-zidx = find( (xsignUpdate==0) | (xsign==-1 & xsignUpdate>0.5) |  (xsign==+1 & xsignUpdate<-0.5));
-nidx = find( isnan(xsign) & xsignUpdate<-0.5);
-pidx = find( isnan(xsign) & xsignUpdate>0.5 );
+zidx = ( (xsignUpdate==0) | (xsign==-1 & xsignUpdate>0.5) |  (xsign==+1 & xsignUpdate<-0.5));
+nidx = ( isnan(xsign) & xsignUpdate<-0.5);
+pidx = ( isnan(xsign) & xsignUpdate>0.5 );
 
 % Update xsign
 xsignNew = xsign;
@@ -373,4 +408,3 @@ xsignNew( zidx ) = 0;
 xsignNew( nidx ) = -1;
 xsignNew( pidx ) = +1;
 
- 
