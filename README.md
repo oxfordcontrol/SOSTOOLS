@@ -2,7 +2,7 @@
 A free MATLAB toolbox for formulating and solving sums of squares (SOS) optimization programs.
 
 ## Introduction
-**SOSTOOLS** is a free MATLAB toolbox for formulating and solving sums of squares (SOS) optimization programs. SOSTOOLS can be used to specify and solve sum of squares polynomial problems using a very simple, flexible, and intuitive high-level notation. The SOS programs can be solved using [SeDuMi](https://sedumi.ie.lehigh.edu/), [SDPT3](https://blog.nus.edu.sg/mattohkc/softwares/sdpt3/), [CSDP](https://github.com/coin-or/Csdp/wiki), [SDPNAL](http://www.math.nus.edu.sg/~mattohkc/SDPNAL.html), [SDPNAL+](https://blog.nus.edu.sg/mattohkc/softwares/sdpnalplus/), [CDCS](https://github.com/oxfordcontrol/CDCS) and [SDPA](http://sdpa.sourceforge.net/). All these are well-known semidefinite programming solvers, with SOSTOOLS handling internally all the necessary reformulations and data conversion.
+**SOSTOOLS** is a free MATLAB toolbox for formulating and solving sums of squares (SOS) optimization programs. SOSTOOLS can be used to specify and solve sum of squares polynomial problems using a very simple, flexible, and intuitive high-level notation. The SOS programs can be solved using [SeDuMi](https://sedumi.ie.lehigh.edu/), [SDPT3](https://blog.nus.edu.sg/mattohkc/softwares/sdpt3/), [CSDP](https://github.com/coin-or/Csdp/wiki), [SDPNAL+](https://blog.nus.edu.sg/mattohkc/softwares/sdpnalplus/), [CDCS](https://github.com/oxfordcontrol/CDCS), [SDPA](http://sdpa.sourceforge.net/), and [Mosek](https://www.mosek.com/downloads/). All these are well-known semidefinite programming solvers, with SOSTOOLS handling internally all the necessary reformulations and data conversion.
 
 ## What is a "sum of squares optimization program"? Why would I want such a thing?
 
@@ -53,7 +53,7 @@ To install and run SOSTOOLS, you need:
 
 * [MATLAB](http://www.mathworks.com/) version 6.0 or later.
 * MATLAB Symbolic Math Toolbox version 2.1.2 (optional) for SOSTOOLS versions 2.05 and earlier, or the current version of the MATLAB Symbolic Math Toolbox for SOSTOOLS version 3.00 and later.
-* An SDP solver, either [SeDuMi](https://sedumi.ie.lehigh.edu/), [SDPT3](https://blog.nus.edu.sg/mattohkc/softwares/sdpt3/), [CSDP](https://github.com/coin-or/Csdp/wiki), [SDPNAL](http://www.math.nus.edu.sg/~mattohkc/SDPNAL.html), [SDPNAL+](https://blog.nus.edu.sg/mattohkc/softwares/sdpnalplus/), [CDCS](https://github.com/oxfordcontrol/CDCS) and [SDPA](http://sdpa.sourceforge.net/). These solvers and their documentation can be downloaded for free. For information on how to install them, you are referred to their installation instructions.
+* An SDP solver, either [SeDuMi](https://sedumi.ie.lehigh.edu/), [SDPT3](https://blog.nus.edu.sg/mattohkc/softwares/sdpt3/), [CSDP](https://github.com/coin-or/Csdp/wiki), [SDPNAL+](https://blog.nus.edu.sg/mattohkc/softwares/sdpnalplus/), [CDCS](https://github.com/oxfordcontrol/CDCS), [SDPA](http://sdpa.sourceforge.net/), or [Mosek](https://www.mosek.com/downloads/). Most of these solvers and their documentation can be downloaded for free, and Mosek offers a free academic license. For information on how to install these solvers, you are referred to their respective installation instructions.
 * SOSTOOLS can easily be run on Windows or macOS machines. It utilizes MATLAB sparse matrix representation for good performance and to reduce the amount of memory needed.
 
 Detailed installation instructions are available in the [SOSTOOLS user's guide](docs/sostools.pdf).
@@ -69,7 +69,7 @@ The software has been written and is maintained by:
 * [Peter Seiler](https://seiler.engin.umich.edu/)
 * [Pablo A. Parrilo](https://www.mit.edu/~parrilo)
 * [Matthew M. Peet](http://control.asu.edu/)
-* [Declan Jagt]
+* [Declan Jagt](https://scholar.google.com/citations?user=xr33ffIAAAAJ&hl=en)
 
 ## References
 For a detailed explanation of the theory and applications of sums of squares programming, as well as references to related work, please see:
