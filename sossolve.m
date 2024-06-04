@@ -93,6 +93,8 @@ elseif ((nargin==2) && ~isnumeric('options') )%2 arguments given,
     if ~isfield(options,'params')
         options.params.tol = 1e-9;%default values for SeDuMi
         options.params.alg = 2;
+    elseif ~isfield(options.params,'tol')
+        options.params.tol = 1e-9;%default values for SeDuMi
     end
 end
 
