@@ -58,9 +58,15 @@ function p = sosgetsol(sos,V,digit)
 % 06/09/13 - MP -- faster implementation for matrix-valued polynomials
 % 06/25/20 - Sachin -- fixed bug related constant polynomials
 % 04/19/22 - DJ -- Update to allow cellstr inputs
+% 07/02/24 - DJ -- Add check if program has been solved.
 
 if nargin == 2
     digit = 5;   % Default
+end
+
+% Check if the program has even been solved yet.
+if ~isfield(sos,'solinfo') || ~isfield(sos.solinfo,'RRx') || isempty(sos.solinfo.RRx)
+    error('No solution seems to have been produced: either "sossolve" has not been called, or the program was found to be infeasible.')
 end
 
 if isfield(sos,'symvartable')
