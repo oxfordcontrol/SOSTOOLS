@@ -53,10 +53,13 @@ function sos = sosprogram(vartable,decvartable)
 % 12/15/21 - DJ -- Correction for 'sos.var.idx{1}' specification in dpvar case
 % 02/09/22 - DJ -- Add check for mosek solver
 % 05/04/23 - DJ -- Convert 'decvartable' to row vector in 'sym' case.
+% 09/08/24 - DJ -- Ensure 'sym' sos.decvartable has opening and closing brackets
 
-if ~exist('sedumi') & ~exist('sqlp') & ~exist('csdp') & ~exist('sdpnal') & ~exist('sdpnalplus')&  ~exist('sdpam') &  ~exist('cdcs') & ~exist('mosekopt')
+if ~exist('sedumi') && ~exist('sqlp') && ~exist('csdp') &&...
+        ~exist('sdpnal') && ~exist('sdpnalplus') && ~exist('sdpam') &&...
+            ~exist('cdcs') && ~exist('mosekopt')
     error('No SDP solvers found.') ;
-end;
+end
 
 if ~exist('getpolysym')
     dd = which('sosprogram');
@@ -64,11 +67,12 @@ if ~exist('getpolysym')
     dd = strrep(dd,'\sosprogram.m','\');
     pp = genpath(dd);
     addpath(pp);
-end;
+end
 
 
+% Distinguish 'sym' and 'dpvar'/'pvar' implementation.
 if isa(vartable,'sym')
-    
+    % Initialize an empty optimization program
     sos.var.num = 0;
     sos.var.type = {};
     sos.var.Z = {};
@@ -95,6 +99,7 @@ if isa(vartable,'sym')
     sos.solinfo.RRy = [];
     sos.solinfo.info = [];
     
+    % Set the independent variables.
     assume(vartable,'real');    % DJ - 05/04/23
     if ~isrow(vartable) %AP 30092020
         vartable = vartable.';
@@ -110,7 +115,7 @@ if isa(vartable,'sym')
     sos.varmat.symvartable = [];
     sos.varmat.count = 0;
     
-    
+    % Set the decision variables.
     if (nargin == 2 && ~isempty(decvartable))
         assume(decvartable,'real');     % DJ - 05/04/23
         if ~isrow(decvartable)
@@ -118,14 +123,13 @@ if isa(vartable,'sym')
         end
 
         sos.objective = sparse(length(decvartable),1);
-        sos.decvartable = sym2chartable(decvartable);     % 03/01/02
-%        setofCommaBrackets = [1 strfind(sos.decvartable,',') strfind(sos.decvartable,']')];%26/04/13
+        sos.decvartable = converttochar(decvartable);     % 09/08/24
         
         if size(decvartable,2) > 1
             decvartable = decvartable.';%the transpose of a matrix of decision varibles
             %it is put under this form in
             %sos.symdecvartable (next line)
-        end;
+        end
         sos.symdecvartable = decvartable;
         sos.var.idx{1} = length(find(sos.decvartable==','))+2;
         
@@ -134,10 +138,10 @@ if isa(vartable,'sym')
         sos.symdecvartable = [];
         sos.var.idx{1} = 1;
         
-    end;
+    end
     
 else
-    
+    % Initialize an empty optimization program.
     sos.var.num = 0;
     sos.var.type = {};
     sos.var.Z = {};
@@ -164,13 +168,14 @@ else
     sos.solinfo.RRy = [];
     sos.solinfo.info = [];
     
+    % Set the independent variables.
     sos.vartable = sort(vartable.varname);
     
     sos.varmat.vartable = [];                 % PJS 9/9/2013
     sos.varmat.symvartable = [];
     sos.varmat.count = 0;
     
-    
+    % Set the decision variables.
     if (nargin == 2 && ~isempty(decvartable))
         sos.objective = sparse(length(decvartable),1);
         if isa(decvartable,'dpvar')
@@ -178,11 +183,10 @@ else
         else
             sos.decvartable = sort(decvartable.varname);
         end
-	sos.var.idx{1} = length(sos.decvartable)+1;	% DJ, 12/15/21
+	    sos.var.idx{1} = length(sos.decvartable)+1;	% DJ, 12/15/21
     else
         sos.decvartable = {};
         sos.var.idx{1} = 1;
-    end;
+    end
     
-end;
-
+end
