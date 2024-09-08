@@ -60,6 +60,15 @@ if isfield(sos,'symvartable')
         objvartable = [objvartable, char(objvartable_temp(i)),','];
     end
 
+    % Remove the first and last comma
+    if startsWith(objvartable, ',')
+        objvartable = objvartable(2:end);
+    end
+
+    if endsWith(objvartable, ',')
+        objvartable = objvartable(1:end-1);
+    end
+
 	objvartable = objvartable(find(objvartable~=' '));        % 03/25/02
   	chardecvartable = sym2chartable(sos.decvartable); %AP 30092020
    	decvartable = [',',chardecvartable,','];
