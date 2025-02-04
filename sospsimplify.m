@@ -85,6 +85,8 @@ function [A,b,K,z,dv2x,Nfv,feas,zrem, removed_rows] = sospsimplify(A,b,K,z,dv2x,
 % 08/13/23 DJ Bugfixes:
 %               Reintroduce tolerance in LOCALxsignupdate(xsign,A,b, tol);
 %               Correct indices in updating sign of variables;
+% DJ, 02/04/2025: Bugfix in case of empty "cxUz", "cxUp", or "cxUz", 
+%                 correct dimensions to 0x2 array;
 
 
 %--------------------------------------------------------------------
@@ -285,7 +287,7 @@ if ~isempty(ridx)
 % %     end
 
     % Check for unique rows of xsign to update.
-    cxU = uniquerows_integerTable([cidx,xsignUpdate]);      % DJ, 08/13/23
+    cxU = [zeros(0,2);uniquerows_integerTable([cidx,xsignUpdate])];         % DJ, 08/13/23;     DJ, 02/04/2025
     zidx = cxU(:,2)==0;
     pidx = cxU(:,2)>=0.5;
     nidx = cxU(:,2)<=-0.5;
@@ -318,9 +320,9 @@ if ~isempty(ridx)
     pidx = xsignUpdate==1  & ~zidx;
     nidx = xsignUpdate==-1 & ~zidx;
 
-    cxUz = uniquerows_integerTable([cidx1(zidx),xsignUpdate(zidx)]);
-    cxUp = uniquerows_integerTable([cidx1(pidx),xsignUpdate(pidx)]);
-    cxUn = uniquerows_integerTable([cidx1(nidx),xsignUpdate(nidx)]);
+    cxUz = [zeros(0,2);uniquerows_integerTable([cidx1(zidx),xsignUpdate(zidx)])];       % DJ, 02/04/2025
+    cxUp = [zeros(0,2);uniquerows_integerTable([cidx1(pidx),xsignUpdate(pidx)])];
+    cxUn = [zeros(0,2);uniquerows_integerTable([cidx1(nidx),xsignUpdate(nidx)])];
     
     xsign(cxUz(:,1)) = 0;
     xsign(cxUp(:,1)) = LOCALupdate(xsign(cxUp(:,1)),cxUp(:,2));
@@ -338,9 +340,9 @@ if ~isempty(ridx)
     pidx = xsignUpdate==1  & ~zidx;
     nidx = xsignUpdate==-1 & ~zidx;
 
-    cxUz = uniquerows_integerTable([cidx2(zidx),xsignUpdate(zidx)]);
-    cxUp = uniquerows_integerTable([cidx2(pidx),xsignUpdate(pidx)]);
-    cxUn = uniquerows_integerTable([cidx2(nidx),xsignUpdate(nidx)]);
+    cxUz = [zeros(0,2);uniquerows_integerTable([cidx2(zidx),xsignUpdate(zidx)])];       % DJ, 02/04/2025
+    cxUp = [zeros(0,2);uniquerows_integerTable([cidx2(pidx),xsignUpdate(pidx)])];
+    cxUn = [zeros(0,2);uniquerows_integerTable([cidx2(nidx),xsignUpdate(nidx)])];
     
     xsign(cxUz(:,1)) = 0;
     xsign(cxUp(:,1)) = LOCALupdate(xsign(cxUp(:,1)),cxUp(:,2));
