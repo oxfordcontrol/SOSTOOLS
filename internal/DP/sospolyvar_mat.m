@@ -63,8 +63,8 @@ function [sos,P] = sospolyvar_mat(sos,ZSym,dims,matrixstr,wscoeff)
 % Also, removed for-loop in both coefficient name declaration and degmat matrix declaration
 % DJ, 07/25/21: Small adjustment to fix issue with ndim=1 case
 % DJ, 02/07/23: Bugfix when scalar value "dims" is provided.
-% DJ, 02/21/2025: Bugfix comparing varnames in ZSym to varnames in program.
-%                   Also deal wtih case of empty object or 'sym' format;
+% DJ, 02/21/2025: Deal wtih case of empty object or 'sym' format;
+% DJ, 03/16/2025: Allow "prog.vartable" to be of type 'polynomial';
 
 if nargin<3
     mdim=1;ndim=1;
@@ -103,7 +103,11 @@ if isnumeric(ZSym) & ZSym==1
     ZSym = 0*ZSym+1;
 end
 % locating independent varibles in SOS program structure
-[~,idx1,idx2] = intersect(ZSym.varname,sos.vartable.varname);               % DJ, 02/21/2025
+if isa(sos.vartable,'polynomial')                                           % DJ, 03/16/2025
+    [~,idx1,idx2] = intersect(ZSym.varname,sos.vartable.varname);               
+else
+    [~,idx1,idx2] = intersect(ZSym.varname,sos.vartable);
+end
 Z = sparse(size(ZSym.degmat,1),length(sos.vartable));
 Z(:,idx2) = sparse(ZSym.degmat(:,idx1));
 lenZ = size(Z,1);
