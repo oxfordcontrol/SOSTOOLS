@@ -82,6 +82,7 @@ function [sos,info] = sossolve(sos,options)
 % 03/20/2023 - DJ - Add check for existence of solver on path.
 % 10/31/2024 - DJ - Bugfix for SDPT3 post-processing (smallblkdim vs
 %                                                           smblkdim)
+% 05/18/2025 - DJ - Use Mosek as first choice for default SDP solver.
 
 if (nargin==1)
     %Default options from old sossolve
@@ -101,8 +102,8 @@ elseif ((nargin==2) && ~isnumeric('options') )%2 arguments given,
 end
 
 % Check if solver is appropriately specified.
-solver_list = {'sedumi'; 'mosek'; 'sdpt3'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpa'; 'cdcs'};
-path_list = {'sedumi'; 'mosekopt'; 'sqlp'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpam'; 'cdcs'};
+solver_list = {'mosek'; 'sedumi'; 'sdpt3'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpa'; 'cdcs'};     % 05/18/2025 - DJ
+path_list = {'mosekopt'; 'sedumi'; 'sqlp'; 'csdp'; 'sdpnal'; 'sdpnalplus'; 'sdpam'; 'cdcs'};
 if strcmp(options.solver,'none')
     % If no solver is specified, default to first one found on path.
     for k=1:length(solver_list)
