@@ -61,10 +61,11 @@ function [sos,Q] = sosposmatrvar(sos,n,d,vars)
 % Change log and developer notes
 %
 % original coding - MMP, 2013
+% DJ, 10/15/2025: Avoid use of "even" function to check degree d;
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if ~even(d)
+if rem(d,2)
     error(['Degree of the SOS Polynomial Matrix should be even']);
 end
 if ~isvalid(vars)
@@ -72,7 +73,7 @@ if ~isvalid(vars)
 end
 
 %    Z=monomials_nd(vars,0:ceil(d/2),1);
-Z=monomials(vars,0:ceil(d/2));
+Z=monomials(vars,0:d/2);
 
 
 [sos,Q]=sosquadvar(sos,Z,Z,n,n,'pos');
