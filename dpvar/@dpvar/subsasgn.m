@@ -86,6 +86,7 @@ function a = subsasgn(a,L,RHS)
 % added correction to allow dynamic extension of dpvar size, SS - 8/10/2021
 % 02/21/2022 - DJ: Update for case '.' to avoid use of "set".
 % 10/31/2024 - DJ: Add support for linear indexing;
+% 01/28/2026 - DJ: Replace sparse indexing with manually rebuilding matrix;
 
 switch L(1).type
     case '.'
@@ -248,7 +249,17 @@ switch L(1).type
         idxl_C_RHS = getCindices(RHS,(1:numel(RHS)));
         % All that remains is to replace the coefficients of "a" with those
         % of "RHS".
-        a.C(idxl_C(:)) = RHS.C(idxl_C_RHS);
+        % We do this manually, extracting the nonzero elements from a.C,
+        % removing elements at "idxl_C", and replacing them with the
+        % elements from RHS
+        %a.C(idxl_C(:)) = RHS.C(idxl_C_RHS);     % slow implementation...
+        [r_idcs,c_idcs,vals] = find(a.C);
+        l_idcs = sub2ind(size(a.C),r_idcs,c_idcs);
+        l_retain = ~ismember(l_idcs,idxl_C(:));
+        l_full = [l_idcs(l_retain); idxl_C(:)];
+        val_full = [vals(l_retain); RHS.C(idxl_C_RHS(:))];
+        [r_full,c_full] = ind2sub(size(a.C),l_full);
+        a.C = sparse(r_full,c_full,val_full,size(a.C,1),size(a.C,2));       % DJ, 01/28/2026
 
     case '{}'
         error('{}- like subsassign is not supported for dpvar objects.');
