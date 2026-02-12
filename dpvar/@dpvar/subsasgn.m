@@ -256,8 +256,8 @@ switch L(1).type
         [r_idcs,c_idcs,vals] = find(a.C);
         l_idcs = sub2ind(size(a.C),r_idcs,c_idcs);
         l_retain = ~ismember(l_idcs,idxl_C(:));
-        l_full = [l_idcs(l_retain); idxl_C(:)];
-        val_full = [vals(l_retain); RHS.C(idxl_C_RHS(:))];
+        l_full = [reshape(l_idcs(l_retain),[],1); idxl_C(:)];
+        val_full = [reshape(vals(l_retain),[],1); reshape(RHS.C(idxl_C_RHS(:)),[],1)];
         [r_full,c_full] = ind2sub(size(a.C),l_full);
         a.C = sparse(r_full,c_full,val_full,size(a.C,1),size(a.C,2));       % DJ, 01/28/2026
 
