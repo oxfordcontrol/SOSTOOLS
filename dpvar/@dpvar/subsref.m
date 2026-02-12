@@ -82,6 +82,8 @@ function Dpsub=subsref(Dp,ref)
 % Bug fix for linear indexing, DJ - 10/15/2021
 % Update for matrix-valued linear indices, DJ - 04/19/2022
 % Correction for ":" case, DJ - 04/24/2022
+% DJ, 02/11/2026: Only allocate space for the true number of nonzero
+%                   coefficients;
 
 switch ref(1).type
     case '.'
@@ -192,8 +194,9 @@ switch ref(1).type
                 [Ci,Cj] = find(Dp.C);
                 indxr_n = ismember(indr,Ci);
                 indxc_n = ismember(indc,Cj);
-                Csub = spalloc(length(indr),length(indc),sum(indxr_n)*sum(indxc_n));
-                Csub(indxr_n,indxc_n) = Dp.C(indr(indxr_n),indc(indxc_n));
+                tmp = Dp.C(indr(indxr_n),indc(indxc_n));                    % DJ, 02/11/2026
+                Csub = spalloc(length(indr),length(indc),nnz(tmp));
+                Csub(indxr_n,indxc_n) = tmp;
             else
                 Csub = Dp.C;
                 Csub = Csub(indr,indc);
