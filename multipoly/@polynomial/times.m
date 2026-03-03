@@ -19,7 +19,8 @@ function c = times(a,b)
 %     Function-call form for times.
 
 % 10/22/2002: PJS  Initial Coding
-% 06/17/22: DJ, Allow outer product of vector polynomials
+% 06/17/2022: DJ, Allow outer product of vector polynomials
+% 03/03/2026: DJ, allow for matrix-vector products
 
 % Promote a to polynomial
 a = polynomial(a);
@@ -115,14 +116,24 @@ elseif all(sza==[1 1]) || all(szb==[1 1])
         a.matdim = szb;
         c = times(a,b);
     end
-elseif sza(1)==1 && szb(2)==1   % DJ, 06/17/22
-    a = repmat(a,[szb(1),1]);
-    b = repmat(b,[1,sza(2)]);
-    c = times(a,b);
-elseif sza(2)==1 && szb(1)==1
-    a = repmat(a,[1,szb(2)]);
-    b = repmat(b,[sza(1),1]);
-    c = times(a,b);
 else
-    error('Matrix dimensions must agree');
+    % Allow mismatching dimensions only for dimension 1                     % DJ, 03/03/2026
+    isdim1_a = sza==1;
+    isdim1_b = szb==1;
+    isdim_eq = sza==szb;
+    if any(~isdim_eq & ~isdim1_a & ~isdim1_b)
+        error('Matrix dimensions must agree');
+    end
+    % Augment scalar dimension of a/b to match dimension of b/a
+    if isdim1_a(1) && ~isdim1_b(1)
+        a = repmat(a,[szb(1),1]);
+    elseif ~isdim1_a(1) && isdim1_b(1)
+        b = repmat(b,[sza(1),1]);
+    end
+    if isdim1_a(2) && ~isdim1_b(2)
+        a = repmat(a,[1,szb(2)]);
+    elseif ~isdim1_a(2) && isdim1_b(2)
+        b = repmat(b,[1,sza(2)]);
+    end    
+    c = times(a,b);
 end
