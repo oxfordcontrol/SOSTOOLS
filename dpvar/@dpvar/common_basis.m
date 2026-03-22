@@ -32,6 +32,7 @@ function [Enew, Fnew] = common_basis(E,F)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Initial coding DJ, MP, SS - 07/07/2021
+% DJ, 03/21/2026: Use sparse implementation for larger arrays;
 
 % Check that the inputs have the correct types.
 if ~isa(E, 'dpvar') || ~isa(F,'dpvar')
@@ -40,11 +41,11 @@ end
 
 
 % Check the density of the coefficient matrices
-dnstyE = nnz(E.C)/(size(E.C,1)*size(E.C,2));
-dnstyF = nnz(F.C)/(size(F.C,1)*size(F.C,2));
+dnstyE = nnz(E.C)/numel(E.C);
+dnstyF = nnz(F.C)/numel(F.C);
 
 % If the coefficient matrices are sparse, use the sparse implementation
-if dnstyE<=0.2 && dnstyF<=0.2
+if (dnstyE<=0.2 && dnstyF<=0.2) || numel(F.C)>1e8 || numel(E.C)>1e8         % DJ, 03/21/2026
     [Enew, Fnew] = DPcommon_basis_sparse(E,F); % see end of this file
     return
 end
