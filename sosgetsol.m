@@ -61,6 +61,7 @@ function p = sosgetsol(sos,V,digit)
 % 07/02/24 - DJ -- Add check if program has been solved.
 % 01/26/25 - DJ -- Bugfix dpvar to polynomial conversion, avoid duplicate
 %                   varnames.
+% 05/28/26 - DJ -- Implement distinct substitution for 'dpvar' case.
 
 if nargin == 2
     digit = 5;   % Default
@@ -76,9 +77,7 @@ if isfield(sos,'symvartable')
     p = mysymsubs(V,sos.symdecvartable,sos.solinfo.RRx(1:length(sos.symdecvartable)),digit);
 
 else
-    if isa(V,'dpvar')
-        V = combine(dpvar2poly(V));                                         % 01/26/25 - DJ
-    elseif ischar(V)    % DJ - 04/19/22
+    if ischar(V)   % DJ - 04/19/22
         V = polynomial({V});
     elseif iscellstr(V)
         V = combine(polynomial(V));
@@ -88,33 +87,113 @@ else
             p{k} = sosgetsol(sos,V{k},digit);
         end
         return
+    elseif isa(V,'double')
+        p = V;
+        return
     end
-    
-    [~,idxdecvar1,idxdecvar2] = intersect(V.varname,sos.decvartable);
-    idxvar = setdiff(1:length(V.varname),idxdecvar1);
-    coeffs = [V.degmat(:,idxdecvar1) 1-sum(V.degmat(:,idxdecvar1),2)]*[sos.solinfo.RRx(idxdecvar2);1];
-                                                %MMP 6/9/2013 updated to
-                                                %allow for matrix-valued
-                                                %polynomials and to fix
-                                                %problem with terms with no
-                                                %decision variables
-    coeffs = V.coefficient.*repmat(coeffs,1,size(V.coefficient,2));         % 01/31/02
-    varname = V.varname(idxvar);
-    if isempty(idxvar)
-        degmat = [];
+
+    % At this point, V should be either 'dpvar' or 'polynomial
+    if isa(V,'dpvar')                                                       % DJ, 05/28/26
+        % % V is a dpvar object
+        % Decompose the polynomial variable
+        dvarname = V.dvarname;      nZ = numel(dvarname);
+        varname = V.varname;        degmat = V.degmat;
+        Cmat = V.C;
+        [m,n] = size(V);
+
+        % Determine which of the variables in V are known
+        [~,idxdecvar1,idxdecvar2] = intersect(dvarname,sos.decvartable);
+        idxvar = setdiff((1:length(dvarname))',idxdecvar1); % indices of remaining dvars
+        dvar_new = dvarname(idxvar);                        % names of remaining dvars
+        nZ_new = numel(idxvar);                             % number of remaining dvars
+        % Get the values of known variables
+        dvals = zeros(numel(idxdecvar2),1);
+        dvals(idxdecvar1) = sos.solinfo.RRx(idxdecvar2);
+        dvals = [1;dvals];                      % add constant term
+        idxvar = [1;idxvar+1];                  % constant term always remains
+        
+        % Declare new coefficients given known decision variable values
+        [ridcs,cidcs,vals] = find(Cmat);
+        ridcs_new = [];     cidcs_new = [];     vals_new = [];
+        if isempty(dvar_new)
+            % All variables are replaced
+            for i=1:m
+                % Get coefficient in row i of the matrix-valued function V
+                is_row_i = ridcs>(i-1)*(nZ+1) & ridcs<=i*(nZ+1);
+                ridcs_i = ridcs(is_row_i)-(i-1)*(nZ+1);     % index of decision variable
+                vals_i = vals(is_row_i);
+                cidcs_i = cidcs(is_row_i);
+                % Multiply coefficients with variable values
+                vals_fix = dvals(ridcs_i).*vals_i;
+                % Link known values to the constant monomial
+                ridcs_new = [ridcs_new; ((i-1)*(nZ_new+1)+1)*ones(size(ridcs_i))];
+                vals_new = [vals_new; vals_fix(:)];
+                cidcs_new = [cidcs_new; cidcs_i];
+            end
+        else
+            % Some variables are retained
+            new_idcs = zeros(numel(dvarname)+1,1);
+            new_idcs(idxvar) = 1:numel(idxvar);     % new dvar index associated with each retained dvar
+            for i=1:m
+                % Get coefficient in row i of the matrix-valued function V
+                is_row_i = ridcs>(i-1)*(nZ+1) & ridcs<=i*(nZ+1);
+                ridcs_i = ridcs(is_row_i)-(i-1)*(nZ+1);     % index of decision variable
+                cidcs_i = cidcs(is_row_i);
+                vals_i = vals(is_row_i);
+                % Extract the coefficients that are multiplied with known
+                % values
+                isvar = ismember(ridcs_i,idxvar);
+                ridcs_fix = ridcs_i(~isvar);
+                cidcs_fix = cidcs_i(~isvar);
+                vals_fix = vals_i(~isvar);
+                % Multiply coefficients with variable values
+                vals_fix = dvals(ridcs_fix).*vals_fix;
+                % Link known values to the constant monomial
+                ridcs_new = [ridcs_new; ((i-1)*(nZ_new+1)+1)*ones(numel(vals_fix),1)];
+                cidcs_new = [cidcs_new; cidcs_fix(:)];
+                vals_new = [vals_new; vals_fix(:)];
+                % Add remaining coefficients back into the list
+                ridcs_var = new_idcs(ridcs_i(isvar));       % account for removed dvars
+                ridcs_var = ridcs_var + (i-1)*(nZ_new+1);   % account for row number in matrix
+                ridcs_new = [ridcs_new; ridcs_var];
+                cidcs_new = [cidcs_new; cidcs_i(isvar)];
+                vals_new = [vals_new; vals_i(isvar)];
+            end
+        end
+        % Build the new coefficient matrix
+        Cnew = sparse(ridcs_new,cidcs_new,vals_new,m*(nZ_new+1),size(Cmat,2));
+        % Build a dpvar object with the known values set
+        p = dpvar(Cnew, degmat, varname, dvar_new, [m,n]);
+        % If possible, convert to polynomial
+        if isempty(dvar_new)
+            p = combine(dpvar2poly(p));
+        else
+            p = combine(p);
+        end
     else
-        degmat = V.degmat(:,idxvar);
+        % % V is polynomial
+        [~,idxdecvar1,idxdecvar2] = intersect(V.varname,sos.decvartable);
+        idxvar = setdiff(1:length(V.varname),idxdecvar1);
+        coeffs = [V.degmat(:,idxdecvar1) 1-sum(V.degmat(:,idxdecvar1),2)]*[sos.solinfo.RRx(idxdecvar2);1];
+                                                    %MMP 6/9/2013 updated to
+                                                    %allow for matrix-valued
+                                                    %polynomials and to fix
+                                                    %problem with terms with no
+                                                    %decision variables
+        coeffs = V.coefficient.*repmat(coeffs,1,size(V.coefficient,2));         % 01/31/02
+        varname = V.varname(idxvar);
+        if isempty(idxvar)
+            degmat = [];
+        else
+            degmat = V.degmat(:,idxvar);
+        end
+        if isempty(degmat)
+            coeffs=sum(coeffs,1); % modified by sachin - 6/25/2020 original version sum(coeffs)
+            p=polynomial(coeffs);
+            p=reshape(p,size(V));
+        else
+            p=polynomial(coeffs,degmat,varname,size(V));
+        end
+        p=combine(p);
     end
- %   p = set(V,'varname',varname,'degmat',degmat,'coefficient',coeffs);
-%     degmat 
-%     coeffs
-%     size(V)
-    if isempty(degmat)
-      coeffs=sum(coeffs,1); % modified by sachin - 6/25/2020 original version sum(coeffs)
-      p=polynomial(coeffs);
-      p=reshape(p,size(V));
-  else
-    p=polynomial(coeffs,degmat,varname,size(V));
-   end
-    p=combine(p);
 end
