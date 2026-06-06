@@ -42,12 +42,13 @@ function b = subs(a,old,new)
 % 12/10/2010 PJS Update syntax. Use collect/peval for partial numeric subs.
 % 8/16/2021 SS: fixed bug -- subs(0x0 polynomial,old, new) returns 0x1
 % polynomial, return a as it is if empty.
+% 06/04/2025 DJ: Allow for empty variable lists (perform no substitution)
 
 %---------------------------------------------------------------------
 % Convert to basic syntax: B = subs(A,Old,New);
 %---------------------------------------------------------------------
 
-if isempty(a)
+if isempty(a) || (isempty(old) && isempty(new))
     b=a;
     return 
 end
