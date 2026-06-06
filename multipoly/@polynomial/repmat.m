@@ -50,7 +50,7 @@ end
 % Tile in column direction
 % This is the easier direction due to format of coef matrix
 B = A;
-if N>1
+if N~=1
     szB = size(B);
     B.coefficient = repmat( B.coefficient , [1, N] );
     B.matdim = [szB(1), szB(2)*N];
@@ -58,7 +58,7 @@ end
 
 % Tile in row direction
 % Transpose, perform tile in col dimension, and then transpose back
-if M>1
+if M~=1
     Bt = B';
     szBt = size(Bt);
     Bt.coefficient = repmat( Bt.coefficient , [1, M] );
