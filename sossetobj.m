@@ -48,6 +48,11 @@ function sos = sossetobj(sos,symexpr)
 % 03/01/02 - SP -- New syntax
 % 8/6/2021 - MP -- dpvar update
 % 12/15/2021 - DJ -- Fixes for dpvar case
+% 08/24/26 - MMP: The dpvar branch intersected the objective's decision
+%                variables with the program's and silently dropped whatever
+%                did not match, so a naming mismatch produced an all-zero
+%                objective with no warning. Raise instead, as the symbolic
+%                branch already does.
 
 if isfield(sos,'symvartable')
 
@@ -96,6 +101,12 @@ elseif isa(symexpr,'dpvar')
     end
 
     [~,idxdecvar1,idxdecvar2] = intersect(symexpr.dvarname,sos.decvartable);
+    if numel(idxdecvar1)<numel(symexpr.dvarname)                            % MMP, 08/24/2026
+        unknown = setdiff(symexpr.dvarname,sos.decvartable);                % MMP, 08/24/2026
+        error(['Your proposed objective contains decision variables that ',...
+               'do not appear in the sosprogram: ',...
+               strjoin(unknown(:)',', ')])                                  % MMP, 08/24/2026
+    end                                                                     % MMP, 08/24/2026
     temp=symexpr.C;
        sos.objective(idxdecvar2,1) = temp(idxdecvar1+1,1);	% DJ, 12/15/21
 
