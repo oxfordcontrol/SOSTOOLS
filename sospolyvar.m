@@ -59,9 +59,18 @@ function [sos,V] = sospolyvar(sos,ZSym,wscoeff,PVoption)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
-%
 % -MP 6/27/2021: updated to dpvar output.
 % Also, removed for-loop in both coefficient name declaration and degmat matrix declaration
+%
+% 08/24/26 - MMP: Added compatibility of 'wscoeff' with sosquadvar for dpvar.
+%                Naming convention for sosquadvar names them
+%                via fastint2str, which zero-pads to the digit width of the
+%                batch. The two diverge at >=10 decision variables, so the
+%                published variables did not match the program and sossetobj
+%                silently ignored them. Read the name from sos.decvartable
+%                instead; do not unpad fastint2str, which is on the critical
+%                path of every SOS program.
+%
 
 
 if isfield(sos,'symvartable')
@@ -137,8 +146,8 @@ else
     if nargin > 2 && strcmp(wscoeff,'wscoeff')
         var = sos.var.num;
         for i = sos.var.idx{var}:sos.var.idx{var+1}-1
-            dpvar(['coeff_',int2str(i-sos.var.idx{1}+1)]);
-            assignin('base',['coeff_',int2str(i-sos.var.idx{1}+1)],eval(['coeff_',int2str(i-sos.var.idx{1}+1)]));
+            cname = sos.decvartable{i};                                     % MMP, 08/24/2026
+            assignin('base',cname,dpvar(cname));                            % MMP, 08/24/2026
         end
     end
     
