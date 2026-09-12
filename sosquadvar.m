@@ -1,3 +1,4 @@
+
 function [sos,P,Q] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -112,6 +113,21 @@ function [sos,P,Q] = sosquadvar(sos,Z1c,Z2c,mdim_in,ndim_in,option)
 %               and allow general polynomial basis functions Z1 and Z2;
 % 01/26/25, DJ: Make sure dimensions of coefficients in Q match dimensions
 %               in matrix decision variable;
+% 08/23/26, MMP: Bugfix in the general polynomial basis branch: the stride
+%               used to index the amalgamated monomial list Z12T must be the
+%               number of monomials ndZ1, not the number of basis functions
+%               nZ1(i). The two coincide only when every basis function is a
+%               single (scaled) monomial, so bases such as Z1 = [1;x+x^2]
+%               were mapped onto the wrong monomials;
+% 08/23/26, MMP: Force the outputs of "find" to be columns when rearranging
+%               the degmats of Z1c{i} and Z2c{j}. For a basis in which every
+%               function is a multiple of the same monomial (e.g. [x;2*x]),
+%               the coefficient matrix is a single row, "find" then returns
+%               row vectors, and valCij came out as a matrix;
+% 08/23/26, MMP: Reshape the decision variable names in Q{i,j} to match the
+%               shape of the block, as already done in the monomial branch
+%               (01/26/25). For a block that is a row or column vector, cell
+%               indexing otherwise returned the orientation of dvars_new;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -326,6 +342,7 @@ for cell_idx=1:(nZ1c*nZ2c)
         Z1i_varname = Z1c{i}.varname;
         Z1i_degmat = Z1c{i}.degmat;
         [tmp_i,tmp_j,Z1i_coeffs] = find(Z1c{i}.coeff);
+        tmp_i = tmp_i(:);  tmp_j = tmp_j(:);   Z1i_coeffs = Z1i_coeffs(:);  % MMP, 08/23/2026
         Z1i_degmat(tmp_j,:) = Z1i_degmat(tmp_i,:);  % Sort the degmat in same order as the basis functions
         Z1i_coeffs(tmp_j) = Z1i_coeffs;             % Sort coefficients accordingly
         
@@ -334,6 +351,7 @@ for cell_idx=1:(nZ1c*nZ2c)
         Z2j_degmat = Z2c{j}.degmat;
         Z2j_varname = Z2c{j}.varname;
         [tmp_i,tmp_j,Z2j_coeffs] = find(Z2c{j}.coeff);
+        tmp_i = tmp_i(:);  tmp_j = tmp_j(:);   Z2j_coeffs = Z2j_coeffs(:);  % MMP, 08/23/2026
         Z2j_degmat(tmp_j,:) = Z2j_degmat(tmp_i,:);  % Sort the degmat in accordance with the monomials
         Z2j_coeffs(tmp_j) = Z2j_coeffs;             % Sort coefficients accordingly
         
@@ -518,7 +536,7 @@ for cell_idx=1:(nZ1c*nZ2c)
         % Z1m(p) * Z2m(q) = Z12T(p+(q-1)*ndZ1). Defining
         Z1ind = repmat((1:ndZ1)',[ndZ2,1]);
         Z2ind = kron((1:ndZ2)',ones(ndZ1,1));
-        Z12Tind = Z1ind + (Z2ind-1)*nZ1(i);
+        Z12Tind = Z1ind + (Z2ind-1)*ndZ1;                                   % MMP, 08/23/2026
         % we then have
         % Z1m(Z1ind(k)) * Z2m(Z2ind(k)) = Z12T(Z12Tind(k))
         % Get rid of redundant monomials...
@@ -557,7 +575,7 @@ for cell_idx=1:(nZ1c*nZ2c)
         % If desired, also output the names of the decision variables
         % in Q{i,j} parameterizing P{i,j}
         if nargout>=3
-            Q{i,j} = dvars_new(lindT_mat);
+            Q{i,j} = reshape(dvars_new(lindT_mat),size(lindT_mat));         % MMP, 08/23/2026
         end
         
     end
