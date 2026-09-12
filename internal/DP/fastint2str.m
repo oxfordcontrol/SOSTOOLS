@@ -37,6 +37,16 @@ function [ out ] = fastint2str( x )
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Change log and developer notes
 % SS, 9/27/2021 added case with empty x
+%
+% NAMING CONTRACT: the numeric suffix is zero-padded to the digit width of the
+% largest index in the call, so a batch of 12 names is coeff_01 ... coeff_12
+% while a batch of 9 is coeff_1 ... coeff_9. The padding is what keeps this
+% function fast -- the names stay rectangular, so they are built with one
+% char() and one cellstr() on a numeric array. Unpadding costs 2-3x even
+% vectorised (ragged names need per-row assembly) and 12-15x per-element, and
+% this function names every decision variable in the program. Do not unpad it.
+% Consequence for callers: coefficient names must be READ, not constructed --
+% take them from prog.decvartable, or from the third output of sosquadvar.
 
 if isempty(x)
     out = {};
