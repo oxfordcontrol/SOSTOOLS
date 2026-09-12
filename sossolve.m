@@ -83,6 +83,13 @@ function [sos,info] = sossolve(sos,options)
 % 10/31/2024 - DJ - Bugfix for SDPT3 post-processing (smallblkdim vs
 %                                                           smblkdim)
 % 05/18/2025 - DJ - Use Mosek as first choice for default SDP solver.
+% 08/23/2026 - MMP - Bugfix in the CSDP branch: the guard
+%                   exist('solver_options.params') is always false, so a
+%                   caller's options.params was overwritten by the CSDP
+%                   defaults. Branch on user_params instead.
+
+% Record whether the caller supplied solver parameters.
+user_params = (nargin>=2) && isfield(options,'params');                     % MMP, 08/23/2026
 
 if (nargin==1)
     %Default options from old sossolve
@@ -427,7 +434,7 @@ elseif strcmp(lower(options.solver),'sdpt3')
     end;
 elseif strcmp(lower(options.solver),'csdp') %6/6/13 JA CSDP interface
     %CSDP in action
-    if exist('solver_options.params')
+    if user_params                                                          % MMP, 08/23/2026
         pars = options.params;
     else
         pars.objtol = 1e-9;
