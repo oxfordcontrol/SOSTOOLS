@@ -76,6 +76,13 @@ function [GAM,vars,xopt] = findbound(p,ineq,eq,DEG,options)
 % Adjusted to use symvar instead of findsym - DJ, 10/14/2021
 % Removed num2cell in case when variables are pvar - DJ, 12/10/2021
 % Fix for polynomial with empty degmat + dpvar implementation - DJ, 04/24/2022
+% Bugfix in the dpvar degree computation - MMP, 08/24/2026: a dpvar
+%   coefficient matrix carries ndvars+1 rows per matrix row, not ndvars, so
+%   the per-expression row block was off and deg(i) was read from a
+%   neighbouring element. With one decision variable the wrong slice stayed
+%   in bounds, so this produced a wrong degree rather than an error. Also
+%   reduce the row block to a per-monomial mask before indexing degmat,
+%   mirroring the polynomial branch above.
 
 switch nargin
     case 1 
@@ -212,8 +219,8 @@ elseif isa(vect,'dpvar')
        degmat = sum(vect.degmat,2);
        deg = zeros(length(vect),1);
        for i = 1:length(vect)
-           i_indcs = ((i-1)*ndvars + 1 : i*ndvars);
-           idx = vect.C(i_indcs,:)~=0;
+           i_indcs = ((i-1)*(ndvars+1) + 1 : i*(ndvars+1));                 % MMP, 08/24/2026
+           idx = any(vect.C(i_indcs,:)~=0,1)';                              % MMP, 08/24/2026
            deg_i = max(degmat(idx));
            if isempty(deg_i)
                deg(i) = 0;
