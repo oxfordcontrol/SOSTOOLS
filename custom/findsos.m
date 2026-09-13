@@ -72,6 +72,11 @@ function [Q,Z,decomp,Den] = findsos(P,flag,options)
 % 09/03/22 - DJ: Initialize empty output fields if nargout>=3.
 % 02/07/23 - DJ: Bugfix case where P has constant elements (on diagonal).
 % 05/04/23 - DJ: Allow slightly negative eigenvalues in 'rational' case.
+% 08/23/26 - MMP: Even-degree check indexed Pjj.degmat by P's variable index,
+%                but P(j,j) drops unused variables. Look the variable up by
+%                name. Failed on e.g. findsos([x^2+1, 0; 0, y^2+2]).
+% 08/23/26 - MMP: SDPNAL guard compared the literal 'solver', so never fired.
+%                Test options.solver, case-insensitively.
 
 % Set tolerance for positivity of eigenvalues of Qr in rational case.
 pos_tol_1 = -1e-14; % If min(eig(Qr)) <= pos_tol_1, return Qr with warning
@@ -251,10 +256,11 @@ else
 	for var = 1:nvars;
 		for j = 1:dimp(1)
 			Pjj = P(j,j);
-            if isempty(Pjj.degmat)
+            vidx = find(strcmp(Pjj.varname,P.varname{var}));                % MMP, 08/23/2026
+            if isempty(Pjj.degmat) || isempty(vidx)                         % MMP, 08/23/2026
                 maxdeg = 0;
             else
-			    maxdeg = max(Pjj.degmat(:,var));
+                maxdeg = max(Pjj.degmat(:,vidx));                           % MMP, 08/23/2026
             end
 			if rem(maxdeg,2)
 				disp(['Degree in ',vars(var).varname{1},' is not even for the diagonal elements. The polynomial matrix cannot be a sum of squares']);
@@ -289,7 +295,7 @@ else
     prog = sosineq(prog,dpvar(P));
 	[prog,info] = sossolve(prog,options); %AP edit to pass solver.
 	
-	if strcmp('solver','SDPNAL')
+	if isfield(options,'solver') && strcmpi(options.solver,'sdpnal')        % MMP, 08/23/2026
 		disp('findsos function currently not supported for SDPNAL solver');
 		Q = [];
 		Z = [];
