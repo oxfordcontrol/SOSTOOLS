@@ -35,6 +35,11 @@ function G = mrdivide(E,F)
 % authorship, and a brief description of modifications
 %
 % Initial coding DJ  - 04/04/2023
+% MMP, 08/23/2026: Bugfix in the matrix branch: "nz" was assigned the full
+%   1x2 output of "size(E.degmat)". "for jj=1:nz" silently used only the
+%   first element, but the three-operand colon "jj:nz:end" on the next line
+%   rejects a non-scalar stride, so the whole matrix branch always errored
+%   with "Colon operands must be real scalars". Use size(E.degmat,1).
 
 % Check that the denominator is of type 'double'.
 if isa(F,'polynomial') || isa(F,'dpvar')
@@ -61,7 +66,7 @@ elseif size(E,2)~=size(F,2)
 else
     % Perform division by a matrix.
     [nr,nc] = size(E);
-    nz = size(E.degmat);
+    nz = size(E.degmat,1);                                                  % MMP, 08/23/2026
     G = zeros(nr,nc);
 
     % Decompose E into sum of Ejj, with each jj corresponding to one row of

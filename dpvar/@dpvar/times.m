@@ -38,6 +38,11 @@ function C = times(E,F)
 % authorship, and a brief description of modifications
 %
 % DJ, 03/03/2026: Initial coding;
+% MMP, 08/23/2026: Force the outputs of "find" to be columns. When the dpvar
+%   has no decision variables, Ck is a single row, "find" then returns row
+%   vectors, and the vertical accumulation of the index lists failed with
+%   "Dimensions of arrays being concatenated are not consistent". This only
+%   fired when such a row held two or more nonzeros;
 
 % If either object is double, convert to polynomial
 if ~isa(E,'dpvar') && ~isa(E,'polynomial')
@@ -136,6 +141,7 @@ for k=1:numel(E)
     Ck = Ck*Pmat;
     % Add the coefficients representing this element to the list
     [ridcs_k,cidcs_k,vals_k] = find(Ck);
+    ridcs_k = ridcs_k(:);  cidcs_k = cidcs_k(:);  vals_k = vals_k(:);       % MMP, 08/23/2026
     ridcs_new = [ridcs_new; ridcs_k+(rnum-1)*ndecvars];
     cidcs_new = [cidcs_new; cidcs_k+(cnum-1)*nZ_new];
     vals_new = [vals_new; vals_k];
