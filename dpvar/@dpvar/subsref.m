@@ -84,6 +84,11 @@ function Dpsub=subsref(Dp,ref)
 % Correction for ":" case, DJ - 04/24/2022
 % DJ, 02/11/2026: Only allocate space for the true number of nonzero
 %                   coefficients;
+% MMP, 08/24/2026: Keep column dpvars a column under linear indexing, as
+%                   for polynomials; error for indices of more than 2-D;
+% DJ, 11/25/2026: Linear indexing gives the output shape MATLAB would,
+%                   replacing the rule of MMP, 08/24/2026; fix logical indices;
+
 
 switch ref(1).type
     case '.'
@@ -101,8 +106,12 @@ switch ref(1).type
         if length(ref(1).subs)==1
             % % Distinguish case of linear indexing
             
-            if strcmp(ref(1).subs{1},':')
+            is_colon = strcmp(ref(1).subs{1},':');                          % DJ, 11/25/2026
+            if is_colon
                 ref(1).subs{1} = (1:matdim(1)*matdim(2))';
+            elseif islogical(ref(1).subs{1})
+                % Logical index: use the positions of its true entries
+                ref(1).subs{1} = find(ref(1).subs{1});
             end
             
             % Error checking
@@ -112,11 +121,18 @@ switch ref(1).type
                 error('Indices exceed matrix dimensions');
             end
             
-            % Output will be a column vector
-            mdim = size(ref(1).subs{1});
-            if ndims(mdim)~=2
+            % Shape of the output, as in MATLAB: a vector indexed by a vector
+            % keeps its orientation, otherwise the shape of the index is used.
+            if ndims(ref(1).subs{1})~=2                                     % MMP, 08/24/2026
                 error('Indices to dpvar objects can be at most 2 dimensional')
             end
+            if prod(matdim)>1 && min(matdim)==1 && isvector(ref(1).subs{1}) && ~is_colon   % DJ, 11/25/2026
+                mdim = [numel(ref(1).subs{1}),1];
+                if matdim(1)==1,    mdim = [1,numel(ref(1).subs{1})];   end
+            else
+                mdim = size(ref(1).subs{1});
+            end
+
             [indr,indc] = ind2sub(size(Dp),ref(1).subs{1}(:));
             indr = reshape(indr,mdim);
             indc = reshape(indc,mdim);

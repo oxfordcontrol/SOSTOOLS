@@ -19,6 +19,8 @@ function varargout = subsref(a,L)
 
 % 6/7/2002: PJS  Initial Coding
 % 06/22/2022: DJ, Add option for logical row and column indexing
+% 11/25/2026: DJ, Linear indexing gives the output shape MATLAB would, and
+%   accepts matrix-valued indices;
 
 switch L(1).type
     case '.'
@@ -42,19 +44,18 @@ switch L(1).type
             end
             
             if ~isempty(subsidx) && ...
-                    (max(subsidx)>nra*nca || min(subsidx)<1)
+                    (max(subsidx(:))>nra*nca || min(subsidx(:))<1)          % DJ, 11/25/2026
                 error('Index exceeds matrix dimensions.');
             end
             
             % Do subsref
             b.coefficient = acoef(:,subsidx);
-            if isempty(subsidx)
-                b = polynomial(zeros(size(subsidx)));                
-            elseif nca==1
-                % Column vector should remain column vector
+            if nra*nca>1 && min(nra,nca)==1 && isvector(subsidx) && ~strcmp(L(1).subs{1},':')    % DJ, 11/25/2026
+                % A vector indexed by a vector keeps its orientation
                 b.matdim = [length(subsidx) 1];
+                if nra==1,  b.matdim = [1 length(subsidx)];  end
             else
-                % All other single index references convert to row vector
+                % Otherwise the output takes the shape of the index
                 b.matdim = size(subsidx);
             end
     
