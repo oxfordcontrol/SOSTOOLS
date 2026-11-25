@@ -27,6 +27,7 @@ function B = repmat(A,M,N)
 %   M = repmat(p,[3 2])
 
 % 10/25/2010 PJS   Initial Coding
+% 09/17/2026 MMP   Return empty for a zero or negative tiling factor;
 
 % Argument checking
 error(nargchk(2,3,nargin))
@@ -47,10 +48,16 @@ if ~( isscalar(N) && isa(N,'double') && ceil(N)==floor(N) )
     error('Column tiling dimension must be a scalar integer.');
 end
 
+% A zero or negative factor gives an empty result, as for built-in repmat.
+if M<=0 || N<=0                                                             % MMP, 09/17/2026
+    B = polynomial(zeros(max(M,0)*size(A,1),max(N,0)*size(A,2)));
+    return
+end
+
 % Tile in column direction
 % This is the easier direction due to format of coef matrix
 B = A;
-if N~=1
+if N>1
     szB = size(B);
     B.coefficient = repmat( B.coefficient , [1, N] );
     B.matdim = [szB(1), szB(2)*N];
@@ -58,7 +65,7 @@ end
 
 % Tile in row direction
 % Transpose, perform tile in col dimension, and then transpose back
-if M~=1
+if M>1
     Bt = B';
     szBt = size(Bt);
     Bt.coefficient = repmat( Bt.coefficient , [1, M] );
