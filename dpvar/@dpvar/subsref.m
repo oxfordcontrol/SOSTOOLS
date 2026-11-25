@@ -86,6 +86,7 @@ function Dpsub=subsref(Dp,ref)
 %                   coefficients;
 % MMP, 08/24/2026: Keep column dpvars a column under linear indexing, as
 %                   for polynomials; error for indices of more than 2-D;
+% DJ, 11/19/2026: Improve efficiency for linear indexing.
 % DJ, 11/25/2026: Linear indexing gives the output shape MATLAB would,
 %                   replacing the rule of MMP, 08/24/2026; fix logical indices;
 
@@ -103,7 +104,7 @@ switch ref(1).type
         Zdlen = length(Dp.dvarname) + 1;
         Zplen = size(Dp.degmat,1);
         
-        if length(ref(1).subs)==1
+        if isscalar(ref(1).subs)
             % % Distinguish case of linear indexing
             
             is_colon = strcmp(ref(1).subs{1},':');                          % DJ, 11/25/2026
@@ -133,31 +134,30 @@ switch ref(1).type
                 mdim = size(ref(1).subs{1});
             end
 
-            [indr,indc] = ind2sub(size(Dp),ref(1).subs{1}(:));
-            indr = reshape(indr,mdim);
-            indc = reshape(indc,mdim);
-            
-            % Determine rows in coefficient matrix associated with the desired
-            % rows of the actual object
-            nr = size(indr,1);
-            indr = kron((indr-1)*Zdlen,ones(Zdlen,1)) + repmat((1:Zdlen)',nr,1);
-            indr = repmat(indr,Zplen,1);
-            indr = indr(:);
-            
-            % Determine columns in coefficient matrix associated with the desired
-            % rows of the actual object
-            nc = size(indc,2);
-            indc = kron((indc-1)*Zplen,ones(1,Zplen)) + repmat((1:Zplen),1,nc);
-            indc = kron(indc,ones(Zdlen,1));
-            indc = indc(:);
-            
-            % Extract the appropriate elements from the coefficient matrix
-            linidx = sub2ind(size(Dp.C),indr,indc);
-            Csub = spalloc(mdim(1)*Zdlen,mdim(2)*Zplen,nnz(Dp.C));  % Do we have a better estimate for the number of nonzeros?
-            Csub(:) = Dp.C(linidx);
-            
-            % Build the new dpvar with the adjusted coefficient matrix and dimension
-            Dpsub = compress(dpvar(Csub, Dp.degmat, Dp.varname, Dp.dvarname,mdim));
+            % Remap only the nonzero coefficients of Dp.C                   % DJ, 11/19/2026
+            [ridcs,cidcs,vals] = find(Dp.C);
+            didcs = mod(ridcs-1,Zdlen)+1;       zidcs = mod(cidcs-1,Zplen)+1;
+            elidcs = (ridcs-didcs)/Zdlen+1 + (cidcs-zidcs)/Zplen*matdim(1);
+            Ck = sparse(didcs+(zidcs-1)*Zdlen,elidcs,vals,Zdlen*Zplen,matdim(1)*matdim(2));
+            % Column k of Ck(:,index) is output element k, at (i,j) =
+            % ind2sub(mdim,k); repeated indices copy the column. 
+            [ridcs,kidcs,vals] = find(Ck(:,double(ref(1).subs{1}(:))));
+            ridcs = ridcs(:);   kidcs = kidcs(:);   vals = vals(:);         % rows if Ck(:,index) is a row
+            didcs = mod(ridcs-1,Zdlen)+1;       zidcs = (ridcs-didcs)/Zdlen+1;
+            [indr,indc] = ind2sub(mdim,kidcs);
+
+            % Build the new "compressed" dpvar, retaining only constant,
+            % decision variables and monomials with a nonzero coefficient.
+            if isempty(vals)
+                Dpsub = dpvar(zeros(mdim),zeros(1,0),{},{},mdim);
+                return
+            end
+            is_dvar = false(Zdlen,1);   is_dvar([1;didcs]) = true;
+            is_mon = false(Zplen,1);    is_mon(zidcs) = true;
+            dmap = cumsum(is_dvar);     zmap = cumsum(is_mon);              % old to new index
+            Csub = sparse((indr-1)*dmap(end)+dmap(didcs),(indc-1)*zmap(end)+zmap(zidcs),vals,mdim(1)*dmap(end),mdim(2)*zmap(end));
+            degmat = Dp.degmat(is_mon,:);       is_var = any(degmat,1);
+            Dpsub = dpvar(Csub,degmat(:,is_var),Dp.varname(is_var),Dp.dvarname(is_dvar(2:end)),mdim);
             return
         
         elseif length(ref(1).subs)==2
@@ -175,7 +175,7 @@ switch ref(1).type
             elseif length(indr)>=2
                 mdim(1) = length(indr);
                 indr = kron(vec((indr-1)*Zdlen),ones(Zdlen,1)) + repmat((1:Zdlen)',mdim(1),1);
-            elseif length(indr)==1
+            elseif isscalar(indr)
                 indr = (indr(1)-1)*Zdlen+1:(indr(1))*Zdlen;
                 mdim(1) = 1;
             else
@@ -190,7 +190,7 @@ switch ref(1).type
             elseif length(indc)>=2
                 mdim(2) = length(indc);
                 indc = kron(vec((indc-1)*Zplen),ones(Zplen,1)) + repmat((1:Zplen)',mdim(2),1);
-            elseif length(indc)==1
+            elseif isscalar(indc)
                 indc = (indc(1)-1)*(Zplen)+1:(indc(1))*(Zplen);
                 mdim(2) = 1;
             else
