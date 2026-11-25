@@ -67,6 +67,7 @@ classdef (InferiorClasses={?polynomial})dpvar
     % 12/15/21 - DJ -- Add single input single output case (y=dpvar('x'))
     % 02/14/22 - DJ -- Add option to input cell of strings (y=dpvar({'x1','x2'}))
     % 01/26/25 - DJ -- Combine decision variable names for cell to dpvar;
+    % 09/17/26 - MP -- Build C from its nonzero indices in the cellstr branch;
     
     
     
@@ -126,8 +127,12 @@ classdef (InferiorClasses={?polynomial})dpvar
                 elseif iscellstr(varargin{1})
                     [nd1,nd2] = size(varargin{1});
                     nd = nd1*nd2;
-                    if nargout<=1   
-                        Cf = sparse(reshape([repmat([0;1;zeros(nd,1)],nd-1,1);0;1],nd1*(nd+1),nd2));
+                    if nargout<=1
+                        % One nonzero per decision variable p, at linear index
+                        % 2+(p-1)*(nd+2) of C (matrix row outer, dvar inner).
+                        lin = 2 + (0:nd-1)'*(nd+2);                         % MP, 09/17/2026
+                        nr  = nd1*(nd+1);
+                        Cf  = sparse(mod(lin-1,nr)+1,floor((lin-1)/nr)+1,1,nr,nd2);
                         dmat = zeros(1,0);
                         vname = {};
                         dvname = varargin{1}(:);
