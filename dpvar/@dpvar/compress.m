@@ -34,6 +34,7 @@ function outdpvar = compress(indpvar)
 % authorship, and a brief description of modifications
 %
 % Initial coding DJ, MP, SS - 07/01/2021
+% DJ, 11/20/2026: Remap the nonzeros of C, instead of indexing its rows;
 
 if ~isa(indpvar,'dpvar')
     error("DPcompress() needs a dpvar variable as input");
@@ -53,16 +54,20 @@ ntt = size(degmat,1);
 Crows = any(C,2);                       % Logical array indicating which rows contain a nonzero value
 dvars = any(reshape(Crows,nd,mdim),2);  % Logical array inidcating which dvars {1;dvar1;...} actually appear in the object indpvar
 dvars(1) = 1;                           %  - make sure not to exclude constant term
-Crows_new = repmat(dvars,mdim,1);       % Logical array indicating which rows of C should be retained
 
 % Establish which monomial terms appear in the actual dpvar
 Ccols = vec(any(C,1));                      % Logical array indicating which columns contain a nonzero value
 degrows = any(reshape(Ccols,ntt,ndim),2);   % Logical array inidcating which monomial terms {1;...;ntt} actually appear in the object indpvar
-Ccols_new = repmat(degrows,ndim,1);         % Logical array indicating which columns of C should be retained
 
 % Compress C and degmat to get rid of dvars and monomials that do
-% not contribute
-C_new = C(Crows_new,Ccols_new);
+% not contribute. Remap only the nonzeros.
+[ridcs,cidcs,vals] = find(C);
+ridcs = ridcs(:);   cidcs = cidcs(:);   vals = vals(:);     % rows if C is a row
+didcs = mod(ridcs-1,nd)+1;          zidcs = mod(cidcs-1,ntt)+1;
+dmap = cumsum(full(dvars));         zmap = cumsum(full(degrows));
+nd_new = nnz(dvars);                ntt_new = nnz(degrows);
+C_new = sparse((ridcs-didcs)/nd*nd_new+dmap(didcs),(cidcs-zidcs)/ntt*ntt_new+zmap(zidcs),vals,mdim*nd_new,ndim*ntt_new);  % DJ, 11/20/2026
+if ~issparse(C),    C_new = full(C_new);    end
 if isempty(C_new)
     outdpvar = dpvar(zeros(mdim,ndim),zeros(1,0),{},{},[mdim,ndim]);
     return
