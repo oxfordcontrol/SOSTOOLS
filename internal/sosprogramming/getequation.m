@@ -60,6 +60,10 @@ function [At,b,Z] = getequation(symexpr,vartable,decvartable,varmat,Type)
 % 12/14/21 - DJ -- Fixed issues with symengine, missing ']', though more issues may be expected
 % 02/14/22 - DJ -- Adjustment for dpvar Mineq case
 % 02/21/22 - DJ, PS -- Bugfix for sym case
+% 09/26/26 - MMP -- dpvar branch: skip reordering coefficients of 1 x n
+%                   expressions, match decision variables to the table once;
+% 09/27/26 - DJ -- Throw an error right away if repeated or missing
+%                   decision variables are encountered in 'dvarname'.
 
 
 if isa(symexpr,'dpvar')  
@@ -68,7 +72,6 @@ if isa(symexpr,'dpvar')
     n_dvars_prog = numel(decvartable);
     n_vars_prog = numel(vartable);
     cvartable_prog = char(vartable);
-    cdvartable_prog = char(decvartable);
     dvarname = symexpr.dvarname;
 %     if isempty(dvarname)
 %         error(['Direct constraints on independent variables are not supported.',...
@@ -86,8 +89,14 @@ if isa(symexpr,'dpvar')
     
     
     % % Reshape coefficients as [C11,C21,...,Cm1,C12,...,Cmn]
+    % A single row of blocks is already in this order; n = 0 is left to the
+    % reorder, which rejects it.
+    if m==1 && n>0                                                          % MMP, 09/26/2026
+        C_reshape = C;
+    else
     C_cell = mat2cell(C,(n_dvars_dp+1)*ones(m,1),n_mons*ones(n,1));
     C_reshape = cell2mat(reshape(C_cell,1,m*n));
+    end
     
     if nargin>=5 && strcmp(Type,'ineq')
         % In Mineq case, retain all columns, and store the unique monomials
@@ -141,9 +150,22 @@ if isa(symexpr,'dpvar')
     Z(:,idx) = degmat_big2;
 
     % synchronize dpvars to SOS program decvartable
-    [~,idx]=ismember(dvarname,cdvartable_prog); % also slow??
-    if ~isempty(find(~idx,1))
-        error('The given expression has a decision variable which does not appear in the sosprogram')
+    % Scan the table once against the expression's names; idx(i) is the
+    % first table row holding dvarname{i}. A table of one name takes the
+    % ismember route, as accumarray fails on its scalar output.
+    if iscellstr(decvartable) && iscellstr(dvarname) && numel(decvartable)>1 % MMP, 09/26/2026
+        [tf,loc] = ismember(decvartable(:),dvarname);
+        idx = accumarray(loc(tf),find(tf),[numel(dvarname),1],@min,0);
+        if ~all(idx)
+            % A name absent from the table, or repeated in dvarname
+            error('The given expression has a decision variable which is repeated or does not appear in the sosprogram')
+        end
+        idx = reshape(idx,size(dvarname));
+    else
+        [~,idx]=ismember(dvarname,char(decvartable));
+        if ~all(idx)                                                        % DJ, 09/27/2026
+            error('The given expression has a decision variable which does not appear in the sosprogram')
+        end
     end
     At=sparse([],[],[],n_dvars_prog,n_cons,nnz(At_temp));
     At(idx,:)=-At_temp; % main time sink?
