@@ -43,12 +43,13 @@ function b = subs(a,old,new)
 % 8/16/2021 SS: fixed bug -- subs(0x0 polynomial,old, new) returns 0x1
 % polynomial, return a as it is if empty.
 % 06/04/2025 DJ: Allow for empty variable lists (perform no substitution)
+% 11/25/2026 DJ: Check for empty lists only with three inputs;
 
 %---------------------------------------------------------------------
 % Convert to basic syntax: B = subs(A,Old,New);
 %---------------------------------------------------------------------
 
-if isempty(a) || (isempty(old) && isempty(new))
+if isempty(a) || (nargin==3 && isempty(old) && isempty(new))                % DJ, 11/25/2026
     b=a;
     return 
 end
